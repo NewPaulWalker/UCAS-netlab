@@ -9,7 +9,7 @@
 void handle_packet(iface_info_t *iface, char *packet, int len)
 {
 	broadcast_packet(iface, packet, len);
-	free(packet);
+	//free(packet);
 }
 
 void ustack_run()
@@ -29,6 +29,7 @@ void ustack_run()
 			continue;
 
 		for (int i = 0; i < instance->nifs; i++) {
+		//for (int i = instance->nifs - 1; i >= 0; i--) {	//reverse
 			if (instance->fds[i].revents & POLLIN) {
 				len = recvfrom(instance->fds[i].fd, buf, ETH_FRAME_LEN, 0, \
 						(struct sockaddr*)&addr, &addr_len);
@@ -46,7 +47,7 @@ void ustack_run()
 					iface_info_t *iface = fd_to_iface(instance->fds[i].fd);
 					if (!iface) 
 						continue;
-
+					/*	cancle mem req
 					char *packet = malloc(len);
 					if (!packet) {
 						log(ERROR, "malloc failed when receiving packet.");
@@ -54,6 +55,8 @@ void ustack_run()
 					}
 					memcpy(packet, buf, len);
 					handle_packet(iface, packet, len);
+					*/
+					handle_packet(iface,buf,len);
 				}
 			}
 		}
