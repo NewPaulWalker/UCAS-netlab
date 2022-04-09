@@ -20,12 +20,20 @@
 void handle_packet(iface_info_t *iface, char *packet, int len)
 {
 	// TODO: implement the packet forwarding process here
-	fprintf(stdout, "TODO: implement the packet forwarding process here.\n");
+	//fprintf(stdout, "TODO: implement the packet forwarding process here.\n");
 
 	struct ether_header *eh = (struct ether_header *)packet;
-	log(DEBUG, "the dst mac address is " ETHER_STRING ".\n", ETHER_FMT(eh->ether_dhost));
+	//log(DEBUG, "the dst mac address is " ETHER_STRING ".\n", ETHER_FMT(eh->ether_dhost));
 
-	free(packet);
+	iface_info_t *entry = lookup_port(eh->ether_dhost);
+	if(entry)
+		iface_send_packet(entry, packet, len);
+	else
+		broadcast_packet(iface, packet, len);
+
+	insert_mac_port(eh->ether_shost, iface);
+
+	//free(packet);
 }
 
 // run user stack, receive packet on each interface, and handle those packet
@@ -47,6 +55,7 @@ void ustack_run()
 			continue;
 
 		for (int i = 0; i < instance->nifs; i++) {
+		//for (int i = instance->nifs -1; i >= 0; i--) {
 			if (instance->fds[i].revents & POLLIN) {
 				len = recvfrom(instance->fds[i].fd, buf, ETH_FRAME_LEN, 0, \
 						(struct sockaddr*)&addr, &addr_len);
@@ -65,13 +74,15 @@ void ustack_run()
 					if (!iface) 
 						continue;
 
+					/*
 					char *packet = malloc(len);
 					if (!packet) {
 						log(ERROR, "malloc failed when receiving packet.");
 						continue;
 					}
 					memcpy(packet, buf, len);
-					handle_packet(iface, packet, len);
+					*/
+					handle_packet(iface, buf, len);
 				}
 			}
 		}

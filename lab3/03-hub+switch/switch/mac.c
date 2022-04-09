@@ -39,7 +39,19 @@ void destory_mac_port_table()
 iface_info_t *lookup_port(u8 mac[ETH_ALEN])
 {
 	// TODO: implement the lookup process here
-	fprintf(stdout, "TODO: implement the lookup process here.\n");
+	//fprintf(stdout, "TODO: implement the lookup process here.\n");
+	u8 u8_idx = hash8((char*)&mac[ETH_ALEN], ETH_ALEN);
+	int idx = (int)u8_idx;
+	mac_port_entry_t *entry;
+	list_for_each_entry(entry, &(mac_port_map.hash_table[idx]), list){
+		int i;
+		for(i=0;i<ETH_ALEN;i++){
+			if(entry->mac[i]!=mac[i])
+				break;
+		}
+		if(i==ETH_ALEN-1)
+			return entry->iface;
+	}
 	return NULL;
 }
 
@@ -47,7 +59,35 @@ iface_info_t *lookup_port(u8 mac[ETH_ALEN])
 void insert_mac_port(u8 mac[ETH_ALEN], iface_info_t *iface)
 {
 	// TODO: implement the insertion process here
-	fprintf(stdout, "TODO: implement the insertion process here.\n");
+	//fprintf(stdout, "TODO: implement the insertion process here.\n");
+
+	u8 u8_idx = hash8((char*)&mac[ETH_ALEN], ETH_ALEN);
+	int idx = (int)u8_idx;
+	mac_port_entry_t *entry;
+	list_for_each_entry(entry, &(mac_port_map.hash_table[idx]), list){
+		int i;
+		for(i=0;i<ETH_ALEN;i++){
+			if(mac[i]!=entry->mac[i])
+				break;
+		}
+		if(i==ETH_ALEN-1){
+			pthread_mutex_lock(&(mac_port_map.lock));
+			if(entry->iface!=iface)
+				entry->iface = iface;
+			entry->visited = MAC_PORT_TIMEOUT;
+			pthread_mutex_unlock(&(mac_port_map.lock));
+			return ;
+		}
+	}
+	pthread_mutex_lock(&(mac_port_map.lock));
+	mac_port_entry_t *new = malloc(sizeof(mac_port_entry_t));
+	new->iface = iface;
+	new->visited = MAC_PORT_TIMEOUT;
+	for(int i=0;i<ETH_ALEN;i++)
+		new->mac[i] = mac[i];
+	list_add_head(&new->list, &(mac_port_map.hash_table[idx]));
+	pthread_mutex_unlock(&(mac_port_map.lock));
+	return ;
 }
 
 // dumping mac_port table
@@ -73,9 +113,22 @@ void dump_mac_port_table()
 int sweep_aged_mac_port_entry()
 {
 	// TODO: implement the sweeping process here
-	fprintf(stdout, "TODO: implement the sweeping process here.\n");
-
-	return 0;
+	//fprintf(stdout, "TODO: implement the sweeping process here.\n");
+	int n = 0;
+	mac_port_entry_t *entry, *q;
+	pthread_mutex_lock(&mac_port_map.lock);
+	for(int i=0;i<HASH_8BITS;i++){
+		list_for_each_entry_safe(entry, q, &mac_port_map.hash_table[i], list){
+			entry->visited --;
+			if(entry->visited==0){
+				list_delete_entry(&entry->list);
+				free(entry);
+				n++;
+			}
+		}
+	}
+	pthread_mutex_unlock(&mac_port_map.lock);
+	return n;
 }
 
 // sweeping mac_port table periodically, by calling sweep_aged_mac_port_entry
