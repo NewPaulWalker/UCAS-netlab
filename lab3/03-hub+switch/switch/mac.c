@@ -40,18 +40,23 @@ iface_info_t *lookup_port(u8 mac[ETH_ALEN])
 {
 	// TODO: implement the lookup process here
 	//fprintf(stdout, "TODO: implement the lookup process here.\n");
-	u8 u8_idx = hash8((char*)&mac[ETH_ALEN], ETH_ALEN);
+	u8 u8_idx = hash8((char*)mac, ETH_ALEN);
 	int idx = (int)u8_idx;
 	mac_port_entry_t *entry;
+	pthread_mutex_lock(&mac_port_map.lock);
 	list_for_each_entry(entry, &(mac_port_map.hash_table[idx]), list){
 		int i;
 		for(i=0;i<ETH_ALEN;i++){
 			if(entry->mac[i]!=mac[i])
 				break;
 		}
-		if(i==ETH_ALEN-1)
-			return entry->iface;
+		if(i==ETH_ALEN){
+			iface_info_t *temp = entry->iface;
+			pthread_mutex_unlock(&mac_port_map.lock);
+			return temp;
+		}
 	}
+	pthread_mutex_unlock(&mac_port_map.lock);
 	return NULL;
 }
 
@@ -61,17 +66,17 @@ void insert_mac_port(u8 mac[ETH_ALEN], iface_info_t *iface)
 	// TODO: implement the insertion process here
 	//fprintf(stdout, "TODO: implement the insertion process here.\n");
 
-	u8 u8_idx = hash8((char*)&mac[ETH_ALEN], ETH_ALEN);
+	u8 u8_idx = hash8((char*)mac, ETH_ALEN);
 	int idx = (int)u8_idx;
 	mac_port_entry_t *entry;
+	pthread_mutex_lock(&(mac_port_map.lock));
 	list_for_each_entry(entry, &(mac_port_map.hash_table[idx]), list){
 		int i;
 		for(i=0;i<ETH_ALEN;i++){
 			if(mac[i]!=entry->mac[i])
 				break;
 		}
-		if(i==ETH_ALEN-1){
-			pthread_mutex_lock(&(mac_port_map.lock));
+		if(i==ETH_ALEN){
 			if(entry->iface!=iface)
 				entry->iface = iface;
 			entry->visited = MAC_PORT_TIMEOUT;
@@ -79,7 +84,6 @@ void insert_mac_port(u8 mac[ETH_ALEN], iface_info_t *iface)
 			return ;
 		}
 	}
-	pthread_mutex_lock(&(mac_port_map.lock));
 	mac_port_entry_t *new = malloc(sizeof(mac_port_entry_t));
 	new->iface = iface;
 	new->visited = MAC_PORT_TIMEOUT;
