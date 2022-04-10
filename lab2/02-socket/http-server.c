@@ -227,144 +227,171 @@ void *handle_https_request(void *arg){
 		perror("SSL_accept failed");
 		exit(1);
 	}else{
-		char buf[1024] = {0};
-		int bytes = SSL_read(ssl,buf,sizeof(buf));
-		if (bytes < 0) {
-			perror("SSL_read failed");
-			exit(1);
-		}
+		int keep_alive = 1;
+		char buf[1024];
+		while(keep_alive){
+			memset(buf,0,1024);
+			int bytes = SSL_read(ssl,buf,sizeof(buf));
+			if (bytes < 0) {
+				perror("SSL_read failed");
+				exit(1);
+			}
 
-		// deal with request and generate response
-		int relative_url;
-		char temp_url[50] = {0};
-		char http_version[9] = {0};
-		char file_path[100] = {0};
-		int range = 0;
-		int range_begin,range_end;
+			// deal with request and generate response
+			if(buf[0]=='\0')
+				break;
+			int relative_url;
+			char temp_url[50] = {0};
+			char http_version[9] = {0};
+			char file_path[100] = {0};
+			int range = 0;
+			int range_begin,range_end;
 		
 
-		int idx = 4;	//only GET
-		if(buf[idx]=='/')
-			relative_url = 1;
-		else
-			relative_url = 0;
-		int i;
-		i=0;
-		while(buf[idx]!=' '){
-			temp_url[i] = buf[idx];
-			i++;
-			idx++;
-		}
-		idx++;
-		i=0;
-		while(buf[idx]!='\r'){
-			http_version[i] = buf[idx];
-			i++;
-			idx++;
-		}
-		do{
-			idx+=2;
-			if(buf[idx]=='\r')
-				break;
-			char temp = buf[idx+6];
-			buf[idx+6] = '\0';
-			if(strcmp(&buf[idx],"Range:")!=0){
-				buf[idx+6] = temp;
-				while(buf[idx]!='\r')
-					idx++;
-				continue;
-			}else{
-				buf[idx+6] = temp;
-				range = 1;
-				idx+=13;	//Range: bytes=100-200
-				range_begin=0;
-				while(buf[idx]>='0' && buf[idx]<='9'){
-					range_begin = range_begin * 10 + (buf[idx]-'0');
-					idx++;
-				}
+			int idx = 4;	//only GET
+			if(buf[idx]=='/')
+				relative_url = 1;
+			else
+				relative_url = 0;
+			int i;
+			i=0;
+			while(buf[idx]!=' '){
+				temp_url[i] = buf[idx];
+				i++;
 				idx++;
-				if(buf[idx]<'0' || buf[idx]>'9')
-					range_end = -1;
-				else{
-					range_end = 0;
+			}
+			idx++;
+			i=0;
+			while(buf[idx]!='\r'){
+				http_version[i] = buf[idx];
+				i++;
+				idx++;
+			}
+			do{
+				idx+=2;
+				//end
+				if(buf[idx]=='\r')
+					break;
+				//range
+				char temp = buf[idx+6];
+				buf[idx+6] = '\0';
+				if(strcmp(&buf[idx],"Range:")==0){
+					buf[idx+6] = temp;
+					range = 1;
+					idx+=13;	//Range: bytes=100-200
+					range_begin=0;
 					while(buf[idx]>='0' && buf[idx]<='9'){
-						range_end = range_end * 10 + (buf[idx]-'0');
+						range_begin = range_begin * 10 + (buf[idx]-'0');
 						idx++;
 					}
+					idx++;
+					if(buf[idx]<'0' || buf[idx]>'9'){
+						range_end = -1;
+					}else{
+						range_end = 0;
+						while(buf[idx]>='0' && buf[idx]<='9'){
+							range_end = range_end * 10 + (buf[idx]-'0');
+							idx++;
+						}
+					}
+					continue;
 				}
-				break;
-			}
-		}while(idx<1024);
-
-		file_path[0] = '.';
-		if(relative_url){
-			strcat(file_path, temp_url);
-		}else{
-			i=0;
-			int times = 3;
-			while(times){
-				if(temp_url[i]=='/')
-					times--;
-				i++;
-			}
-			i--;
-			strcat(file_path, &temp_url[i]);
-		}
-
-		FILE *fp = fopen(file_path,"r");
-		if(fp==NULL){
-			memset(buf,0,1024);
-			strcat(buf,http_version);
-			strcat(buf, " 404 Not Found\r\n\r\n\r\n\r\n");
-			SSL_write(ssl,buf,strlen(buf));
-		}else{
-			char header[100] = {0};
-			strcat(header,http_version);
-			if(range)
-				strcat(header, " 206 Partial Content\r\n");
-			else
-				strcat(header, " 200 OK\r\n");
-			int size,begin;
-			if(range){
-				if(range_end==-1){
-					fseek(fp,0L,SEEK_END);
-					size = ftell(fp) - range_begin + 1;
-					begin = range_begin;
-				}else{
-					size = range_end - range_begin + 1;
-					begin = range_begin;
+				buf[idx+6] = temp;
+				//connection
+				temp = buf[idx+11];
+				buf[idx+11] = '\0';
+				if(strcmp(&buf[idx],"Connection:")==0){
+					buf[idx+11] = temp;
+					idx +=12;
+					if(buf[idx]=='k')
+						keep_alive = 1;
+					else if(buf[idx]=='c')
+						keep_alive = 0;
 				}
+				buf[idx+11] = temp;
+				while(buf[idx]!='\r')
+					idx++;
+			}while(idx<1024);
+
+			file_path[0] = '.';
+			if(relative_url){
+				strcat(file_path, temp_url);
 			}else{
-				fseek(fp,0L,SEEK_END);
-				size = ftell(fp);
-				begin = 0;
+				i=0;
+				int times = 3;
+				while(times){
+					if(temp_url[i]=='/')
+						times--;
+					i++;
+				}
+				i--;
+				strcat(file_path, &temp_url[i]);
 			}
-			// static  using content-length
-			strcat(header, "Content-Length: ");
-			fseek(fp,begin,0);
-			int temp = size;
-			char size_s[64] = {0};
-			i=0;
-			while(temp){
-				size_s[i] = (temp % 10) + '0';
-				temp /= 10;
-				i++;
-			}
-			i--;
-			for(int j=0;j<=i/2;j++){
-				char temp = size_s[j];
-				size_s[j] = size_s[i-j];
-				size_s[i-j] = temp;
-			}
-			char response[size + 100];
-			memset(response,0,size+100);
-			strcat(response,header);
-			strcat(response,size_s);
-			strcat(response,"\r\n\r\n");
-			fread(&(response[strlen(response)]),1,size,fp);
-			SSL_write(ssl,response,strlen(response));
 
-			fclose(fp);
+			FILE *fp = fopen(file_path,"r");
+			if(fp==NULL){
+				memset(buf,0,1024);
+				strcat(buf,http_version);
+				strcat(buf, " 404 Not Found\r\n\r\n\r\n\r\n");
+				SSL_write(ssl,buf,strlen(buf));
+				break;
+			}else{
+				char header[200] = {0};
+				strcat(header,http_version);
+				if(range)
+					strcat(header, " 206 Partial Content\r\n");
+				else
+					strcat(header, " 200 OK\r\n");
+				int size,begin;
+				if(range){
+					if(range_end==-1){
+						fseek(fp,0L,SEEK_END);
+						size = ftell(fp) - range_begin + 1;
+						begin = range_begin;
+					}else{
+						size = range_end - range_begin + 1;
+						begin = range_begin;
+					}
+				}else{
+					fseek(fp,0L,SEEK_END);
+					size = ftell(fp);
+					begin = 0;
+				}
+				// static  using content-length
+				strcat(header, "Content-Length: ");
+				fseek(fp,begin,0);
+				int temp = size;
+				char size_s[64] = {0};
+				i=0;
+				while(temp){
+					size_s[i] = (temp % 10) + '0';
+					temp /= 10;
+					i++;
+				}
+				i--;
+				for(int j=0;j<=i/2;j++){
+					char temp = size_s[j];
+					size_s[j] = size_s[i-j];
+					size_s[i-j] = temp;
+				}
+				char response[size + 200];
+				memset(response,0,size+200);
+				strcat(response,header);
+				strcat(response,size_s);
+				strcat(response,"\r\nConnection: ");
+				if(keep_alive)
+					strcat(response, "keep-alive");
+				else
+					strcat(response, "close");
+				strcat(response,"\r\n\r\n");
+				fread(&(response[strlen(response)]),1,size,fp);
+				SSL_write(ssl,response,strlen(response));
+
+				fclose(fp);
+
+				if(range==1 && range_end==-1)
+					break;
+			}
 		}
 	}
 	int sock = SSL_get_fd(ssl);
