@@ -138,11 +138,95 @@ void *stp_timer_routine(void *arg)
 	return NULL;
 }
 
+static bool superior_to(stp_port_t *p,
+				u64 designed_root, u32 root_path_cost,
+				u64 switch_id, u16 port_id)
+{
+	bool superior;
+	if(p->designated_root < designed_root){
+		superior = true;
+	}else if(p->designated_root > designed_root){
+		superior = false;
+	}else{
+		if(p->designated_cost < root_path_cost){
+			superior = true;
+		}else if(p->designated_cost > root_path_cost){
+			superior = false;
+		}else{
+			if(p->designated_switch < switch_id){
+				superior = true;
+			}else if(p->designated_switch > switch_id){
+				superior = false;
+			}else{
+				if(p->designated_port < port_id){
+					superior = true;
+				}else if(p->designated_port > port_id){
+					superior = false;
+				}else{
+					superior = false;
+				}
+			}
+		}
+	}
+	return superior;
+}
+
 static void stp_handle_config_packet(stp_t *stp, stp_port_t *p,
 		struct stp_config *config)
 {
 	// TODO: handle config packet here
-	fprintf(stdout, "TODO: handle config packet here.\n");
+	//fprintf(stdout, "TODO: handle config packet here.\n");
+	bool superior;
+
+	u64 designed_root = ntohll(config->root_id);
+	u32 root_path_cost = ntohl(config->root_path_cost);
+	u64 switch_id = ntohll(config->switch_id);
+	u16 port_id = ntohs(config->port_id);
+
+	superior = superior_to(p, designed_root, root_path_cost, switch_id, port_id);
+
+	if(superior){
+		stp_port_send_config(p);
+	}else{
+		p->designated_root = designed_root;
+		p->designated_cost = root_path_cost;
+		p->designated_switch = switch_id;
+		p->designated_port = port_id;
+
+		stp_port_t *root_port = NULL;
+		stp_port_t *port_entry; 
+		iface_info_t* entry;
+		list_for_each_entry(entry, &instance->iface_list, list){
+			port_entry = entry->port;
+			if(!stp_port_is_designated(port_entry)){
+				if(root_port){
+					if(superior_to(port_entry, root_port->designated_root, root_port->designated_cost, root_port->designated_switch, root_port->port_id))
+						root_port = port_entry;
+				}else{
+					root_port = port_entry;
+				}
+			}
+		}
+		p->stp->root_port = root_port;
+		p->stp->designated_root = root_port->designated_root;
+		p->stp->root_path_cost = root_port->designated_cost + root_port->path_cost;
+
+		list_for_each_entry(entry, &instance->iface_list, list){
+			port_entry = entry->port;
+		}
+		list_for_each_entry(entry, &instance->iface_list, list){
+			port_entry = entry->port;
+			if(stp_port_is_designated(port_entry)){
+				port_entry->designated_root = port_entry->stp->designated_root;
+				port_entry->designated_cost = port_entry->stp->root_path_cost;
+			}
+		}
+
+		if(!stp_is_root_switch(p->stp))
+			stp_stop_timer(&p->stp->hello_timer);
+
+		stp_send_config(p->stp);
+	}
 }
 
 static void *stp_dump_state(void *arg)

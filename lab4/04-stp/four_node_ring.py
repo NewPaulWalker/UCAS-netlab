@@ -65,7 +65,7 @@ if __name__ == '__main__':
 
             node.setMAC(mac, intf = intf)
 
-        # node.cmd('./stp > %s-output.txt 2>&1 &' % name)
+        node.cmd('./stp > %s-output_ofmine.txt 2>&1 &' % name)
         # node.cmd('./stp-reference > %s-output.txt 2>&1 &' % name)
 
     net.start()
