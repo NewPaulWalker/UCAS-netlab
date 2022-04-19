@@ -207,25 +207,34 @@ static void stp_handle_config_packet(stp_t *stp, stp_port_t *p,
 				}
 			}
 		}
-		p->stp->root_port = root_port;
-		p->stp->designated_root = root_port->designated_root;
-		p->stp->root_path_cost = root_port->designated_cost + root_port->path_cost;
+		stp->root_port = root_port;
+		stp->designated_root = root_port->designated_root;
+		stp->root_path_cost = root_port->designated_cost + root_port->path_cost;
 
+		u64 designed_root_of_may = stp->designated_root;
+		u32 root_path_cost_of_may = stp->root_path_cost;
+		u64 switch_id_of_may = stp->switch_id;
+		u16 port_id_of_may;
 		list_for_each_entry(entry, &instance->iface_list, list){
 			port_entry = entry->port;
+			port_id_of_may = port_entry->port_id;
+			if(!superior_to(port_entry, designed_root_of_may, root_path_cost_of_may, switch_id_of_may, port_id_of_may)){
+				port_entry->designated_switch = switch_id_of_may;
+				port_entry->designated_port = port_id_of_may;
+			}
 		}
 		list_for_each_entry(entry, &instance->iface_list, list){
 			port_entry = entry->port;
 			if(stp_port_is_designated(port_entry)){
-				port_entry->designated_root = port_entry->stp->designated_root;
-				port_entry->designated_cost = port_entry->stp->root_path_cost;
+				port_entry->designated_root = stp->designated_root;
+				port_entry->designated_cost = stp->root_path_cost;
 			}
 		}
 
-		if(!stp_is_root_switch(p->stp))
-			stp_stop_timer(&p->stp->hello_timer);
+		if(!stp_is_root_switch(stp))
+			stp_stop_timer(&stp->hello_timer);
 
-		stp_send_config(p->stp);
+		stp_send_config(stp);
 	}
 }
 
