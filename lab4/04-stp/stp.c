@@ -138,6 +138,9 @@ void *stp_timer_routine(void *arg)
 	return NULL;
 }
 
+// judge if port p's config is superior to another
+// true -> superior
+// false-> not
 static bool superior_to(stp_port_t *p,
 				u64 designed_root, u32 root_path_cost,
 				u64 switch_id, u16 port_id)
@@ -163,6 +166,18 @@ static bool superior_to(stp_port_t *p,
 				}else if(p->designated_port > port_id){
 					superior = false;
 				}else{
+					//in this lab, it's impossible in this 'else'
+					//but if network != port -- link -- port
+					//for example,   port0
+					//	   			  |
+					//  			 hub
+					//				/  /
+					//			port1 	port2
+					// in this case, it possible
+					// but port1 & port2 are already not designated ports
+					// it cannot send config
+					// so the compare will not happen 
+					// false as the defalut value
 					superior = false;
 				}
 			}
@@ -186,13 +201,21 @@ static void stp_handle_config_packet(stp_t *stp, stp_port_t *p,
 	superior = superior_to(p, designed_root, root_path_cost, switch_id, port_id);
 
 	if(superior){
+		// p is the designated port, send config
 		stp_port_send_config(p);
 	}else{
+		//p's config is replaced by opposite config
+		//it become not designated port as well in this time
 		p->designated_root = designed_root;
 		p->designated_cost = root_path_cost;
 		p->designated_switch = switch_id;
 		p->designated_port = port_id;
 
+		//	update stp state
+		//find root port
+		//1.it is a non-designated port
+		//2.it the most superior non-designated port
+		//search cost O(n)
 		stp_port_t *root_port = NULL;
 		stp_port_t *port_entry; 
 		iface_info_t* entry;
@@ -211,18 +234,27 @@ static void stp_handle_config_packet(stp_t *stp, stp_port_t *p,
 		stp->designated_root = root_port->designated_root;
 		stp->root_path_cost = root_port->designated_cost + root_port->path_cost;
 
+		//	update other ports' config
+		//1.designated		->	designated		:update config
+		//2.designated		->	non-designated	:alreay  deal with after compare 'else'
+		//3.non-designated	->	designated		:need to deal with
+		//4.non-designated	->	non-designated	:no processing required
 		u64 designed_root_of_may = stp->designated_root;
 		u32 root_path_cost_of_may = stp->root_path_cost;
 		u64 switch_id_of_may = stp->switch_id;
 		u16 port_id_of_may;
+		//find all non-designated -> designated
 		list_for_each_entry(entry, &instance->iface_list, list){
 			port_entry = entry->port;
-			port_id_of_may = port_entry->port_id;
-			if(!superior_to(port_entry, designed_root_of_may, root_path_cost_of_may, switch_id_of_may, port_id_of_may)){
-				port_entry->designated_switch = switch_id_of_may;
-				port_entry->designated_port = port_id_of_may;
+			if(!stp_port_is_designated(port_entry)){
+				port_id_of_may = port_entry->port_id;
+				if(!superior_to(port_entry, designed_root_of_may, root_path_cost_of_may, switch_id_of_may, port_id_of_may)){
+					port_entry->designated_switch = switch_id_of_may;
+					port_entry->designated_port = port_id_of_may;
+				}
 			}
 		}
+		//update designed ports'config of designated_root & designated_cost
 		list_for_each_entry(entry, &instance->iface_list, list){
 			port_entry = entry->port;
 			if(stp_port_is_designated(port_entry)){
@@ -231,9 +263,14 @@ static void stp_handle_config_packet(stp_t *stp, stp_port_t *p,
 			}
 		}
 
+		//only root switch can always send config
+		//in this lab, the timer thread may waste because 
+		//the most stps are not root, so it will not send config always after stable
+		//but if the root stp goes wrong? in this time, the thread may work again
 		if(!stp_is_root_switch(stp))
 			stp_stop_timer(&stp->hello_timer);
 
+		//send update config to other stps' port
 		stp_send_config(stp);
 	}
 }
