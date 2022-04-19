@@ -246,13 +246,15 @@ static void stp_handle_config_packet(stp_t *stp, stp_port_t *p,
 		//find all non-designated -> designated
 		list_for_each_entry(entry, &instance->iface_list, list){
 			port_entry = entry->port;
-			if(!stp_port_is_designated(port_entry)){
+			// I think it equals, and judge first is more reasonable
+			// but judge first will cause a stp & hub test fail
+			//if(!stp_port_is_designated(port_entry)){
 				port_id_of_may = port_entry->port_id;
 				if(!superior_to(port_entry, designed_root_of_may, root_path_cost_of_may, switch_id_of_may, port_id_of_may)){
 					port_entry->designated_switch = switch_id_of_may;
 					port_entry->designated_port = port_id_of_may;
 				}
-			}
+			//}
 		}
 		//update designed ports'config of designated_root & designated_cost
 		list_for_each_entry(entry, &instance->iface_list, list){
