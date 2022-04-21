@@ -8,6 +8,6 @@ fi
 for i in `seq 1 $1`; do
 	echo "NODE b$i dumps:";
 	# cat b$i-output.txt | grep -v "DEBUG";
-	cat b$i-mine_c.txt | grep "INFO";
+	cat b$i-mine_hub.txt | grep "INFO";
 	echo "";
 done
