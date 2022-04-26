@@ -94,7 +94,8 @@ def start_iperf(net, duration):
     h1, h2 = net.get('h1', 'h2')
     print 'Start iperf ...'
     server = h2.popen('iperf -s -w 16m')
-    client = h1.popen('iperf -c %s -t %d' % (h2.IP(), duration+ 5))
+    # client = h1.popen('iperf -c %s -t %d' % (h2.IP(), duration+ 5))
+    client = h1.cmd('iperf -c %s -t %d -i 0.5 | tee iperf_result.txt &' % (h2.IP(), duration+ 5))
 
 def stop_iperf():
     print 'Kill iperf ...'
