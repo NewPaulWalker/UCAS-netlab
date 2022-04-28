@@ -12,6 +12,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 
+//看到这
 // handle packet, hand the packet to handle_ip_packet or handle_arp_packet
 // according to ether_type
 //
