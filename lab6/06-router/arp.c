@@ -82,14 +82,14 @@ void handle_arp_packet(iface_info_t *iface, char *packet, int len)
 
 	// check arp packet op
 	if (arp_op == ARPOP_REPLY) {
-		log(DEBUG, "handle arp reply packet: " IP_FMT, LE_IP_FMT_STR(arp_spa));
+		//log(DEBUG, "handle arp reply packet: " IP_FMT, LE_IP_FMT_STR(arp_spa));
 		// check arp packet target
 		if (arp_tpa == iface->ip && memcmp(iface->mac, arp_hdr->arp_tha, ETH_ALEN) == 0) {
 			// insert info into arpcache
 			arpcache_insert(arp_spa, arp_hdr->arp_sha);
 		}
 	} else if (arp_op == ARPOP_REQUEST) {
-		log(DEBUG, "handle arp request packet: " IP_FMT, LE_IP_FMT_STR(arp_tpa));
+		//log(DEBUG, "handle arp request packet: " IP_FMT, LE_IP_FMT_STR(arp_tpa));
 		// check arp packet target
 		if (arp_tpa == iface->ip) {
 			// send reply

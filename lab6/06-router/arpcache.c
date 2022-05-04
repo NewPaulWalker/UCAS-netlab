@@ -148,7 +148,7 @@ void arpcache_insert(u32 ip4, u8 mac[ETH_ALEN])
 	struct arp_req *p_req = NULL, *q_req = NULL;
 	list_for_each_entry_safe(p_req, q_req, &arpcache.req_list, list) {
 		if (p_req->ip4 == ip4) {
-			log(DEBUG, "arp_req: " IP_FMT " at %s", LE_IP_FMT_STR(ip4), p_req->iface->name);
+			//log(DEBUG, "arp_req: " IP_FMT " at %s", LE_IP_FMT_STR(ip4), p_req->iface->name);
 
 			struct cached_pkt * p_pkt = NULL, * q_pkt = NULL;
 			list_for_each_entry_safe(p_pkt, q_pkt, &p_req->cached_packets, list) {
@@ -193,8 +193,8 @@ void *arpcache_sweep(void *arg)
 		// sweep IP->mac entry
 		for (int i = 0; i < MAX_ARP_SIZE; i++) {
 			if (arpcache.entries[i].valid && now - arpcache.entries[i].added >= ARP_ENTRY_TIMEOUT) {
-				log(DEBUG, "sweep entries: " IP_FMT "->" ETHER_STRING, 
-						HOST_IP_FMT_STR(arpcache.entries[i].ip4), ETHER_FMT(arpcache.entries[i].mac));
+				//log(DEBUG, "sweep entries: " IP_FMT "->" ETHER_STRING, 
+						//HOST_IP_FMT_STR(arpcache.entries[i].ip4), ETHER_FMT(arpcache.entries[i].mac));
 				arpcache.entries[i].valid = 0;
 			}
 		}
