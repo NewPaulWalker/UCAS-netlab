@@ -16,7 +16,7 @@ void icmp_send_packet(const char *in_pkt, int len, u8 type, u8 code)
 	struct iphdr *iph = packet_to_ip_hdr(in_pkt);
 	char *ipdata = IP_DATA(iph);
 
-	char *res;
+	char *res = NULL;
 	int res_len = 0, icmp_len = 0;
 
 	//	length
@@ -63,7 +63,8 @@ void icmp_send_packet(const char *in_pkt, int len, u8 type, u8 code)
 	res_icmph->checksum = icmp_checksum(res_icmph, icmp_len);
 	
 	//	send
-	ip_send_packet(res, res_len);
+	if(res)
+		ip_send_packet(res, res_len);
 }
 
 void handle_icmp_packet(char *packet, int len) {
