@@ -12,7 +12,7 @@
 // packet.
 void handle_ip_packet(iface_info_t *iface, char *packet, int len)
 {
-	fprintf(stderr, "TODO: handle ip packet.\n");
+	//fprintf(stderr, "TODO: handle ip packet.\n");
 
 	struct iphdr *iph = packet_to_ip_hdr(packet);
 	u32 dst_ip = ntohl(iph->daddr);
@@ -23,8 +23,8 @@ void handle_ip_packet(iface_info_t *iface, char *packet, int len)
 			handle_icmp_packet(packet, len);
 		}else{
 			free(packet);
-			return ;
 		}
+		return ;
 	}
 
 	//	TTL
@@ -59,12 +59,12 @@ void handle_ip_packet(iface_info_t *iface, char *packet, int len)
 			handle_icmp_packet(packet, len);
 		}else{
 			free(packet);
-			return ;
 		}
+		return ;
 	}
 
 	//	forward
 	iface_send_packet_by_arp(match->iface, next_ip, packet, len);
-	
+
 	return ;
 }
