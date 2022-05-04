@@ -7,6 +7,7 @@
 // #include "log.h"
 
 #include <stdio.h>
+#include <string.h>
 #include <stdlib.h>
 
 // initialize ip header 
@@ -30,7 +31,14 @@ void ip_init_hdr(struct iphdr *ip, u32 saddr, u32 daddr, u16 len, u8 proto)
 rt_entry_t *longest_prefix_match(u32 dst)
 {
 	fprintf(stderr, "TODO: longest prefix match for the packet.\n");
-	return NULL;
+	rt_entry_t *entry, *match = NULL;
+	list_for_each_entry(entry,&rtable,list){
+		if( (dst&entry->mask) == (entry->dest&entry->mask) ){
+			if(match==NULL || (unsigned)match->mask<(unsigned)entry->mask)
+				match = entry;
+		}
+	}
+	return match;
 }
 
 // send IP packet
@@ -40,4 +48,28 @@ rt_entry_t *longest_prefix_match(u32 dst)
 void ip_send_packet(char *packet, int len)
 {
 	fprintf(stderr, "TODO: send ip packet.\n");
+	struct ether_header *eh = (struct ether_header *)packet;
+	struct iphdr *iph = packet_to_ip_hdr(packet);
+	u32 dst_ip = ntohl(iph->daddr);
+
+	//	search
+	rt_entry_t *match = longest_prefix_match(dst_ip);
+	if(!match){
+		free(packet);
+		return ;
+	}
+
+	//	next ip
+	u32 next_ip;
+	if(match->gw == 0)
+		next_ip = dst_ip;
+	else
+		next_ip = match->gw;
+
+	//	change ether header info
+	memcpy(eh->ether_shost, match->iface->mac, ETH_ALEN);
+	eh->ether_type = htons(ETH_P_IP);
+
+	iface_send_packet_by_arp(match->iface, next_ip, packet, len);
+	return ;
 }

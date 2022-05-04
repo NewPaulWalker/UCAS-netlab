@@ -9,7 +9,7 @@
 #include "ether.h"
 
 #include <netinet/in.h>
-// #define IPPROTO_ICMP		1	// ICMP (Internet Control Message Protocol)
+#define IPPROTO_ICMP		1	// ICMP (Internet Control Message Protocol)
 // #define IPPROTO_TCP		6	// TCP (Transport Control Protocol)
 // #define IPPROTO_UDP		17	// UDP (User Datagram Protocol)
 #define IPPROTO_OSPFv2		89 // Open Shortest Path First v2

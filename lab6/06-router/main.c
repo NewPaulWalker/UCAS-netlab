@@ -12,7 +12,6 @@
 #include <stdlib.h>
 #include <unistd.h>
 
-//看到这
 // handle packet, hand the packet to handle_ip_packet or handle_arp_packet
 // according to ether_type
 //
@@ -34,6 +33,7 @@ void handle_packet(iface_info_t *iface, char *packet, int len)
 		default:
 			log(ERROR, "Unknown packet type 0x%04hx, ingore it.", \
 					ntohs(eh->ether_type));
+			free(packet);
 			break;
 	}
 }
