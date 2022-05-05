@@ -21,7 +21,6 @@ struct ether_arp {
 	u8	arp_tha[ETH_ALEN];	/* target hardware address */
 	u32	arp_tpa;		/* target protocol address */
 } __attribute__ ((packed));
-#define ETHER_ARP_SIZE sizeof(struct ether_arp)
 
 void handle_arp_packet(iface_info_t *info, char *pkt, int len);
 void arp_send_request(iface_info_t *iface, u32 dst_ip);

@@ -33,7 +33,6 @@ void handle_packet(iface_info_t *iface, char *packet, int len)
 		default:
 			log(ERROR, "Unknown packet type 0x%04hx, ingore it.", \
 					ntohs(eh->ether_type));
-			free(packet);
 			break;
 	}
 }
