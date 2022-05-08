@@ -57,7 +57,7 @@ void arp_send_reply(iface_info_t *iface, struct ether_arp *req_hdr)
 	memcpy(arp->arp_sha, iface->mac, ETH_ALEN);
 	arp->arp_spa = htonl(iface->ip);
 	memcpy(arp->arp_tha, req_hdr->arp_sha, ETH_ALEN);
-	arp->arp_tpa = req_hdr->arp_tpa;
+	arp->arp_tpa = req_hdr->arp_spa;
 	//send
 	iface_send_packet(iface, packet, ETHER_HDR_SIZE + ETHER_ARP_SIZE);
 }
