@@ -29,8 +29,16 @@ void ip_init_hdr(struct iphdr *ip, u32 saddr, u32 daddr, u16 len, u8 proto)
 // the input address is in host byte order
 rt_entry_t *longest_prefix_match(u32 dst)
 {
-	fprintf(stderr, "TODO: longest prefix match for the packet.\n");
-	return NULL;
+	//fprintf(stderr, "TODO: longest prefix match for the packet.\n");
+
+	rt_entry_t *entry, *match = NULL;
+	list_for_each_entry(entry,&rtable,list){
+		if( (dst&entry->mask) == (entry->dest&entry->mask) ){
+			if(match==NULL || (unsigned)match->mask < (unsigned)entry->mask)
+				match = entry;
+		}
+	}
+	return match;
 }
 
 // send IP packet
@@ -39,5 +47,18 @@ rt_entry_t *longest_prefix_match(u32 dst)
 // router itself. This function is used to send ICMP packets.
 void ip_send_packet(char *packet, int len)
 {
-	fprintf(stderr, "TODO: send ip packet.\n");
+	//fprintf(stderr, "TODO: send ip packet.\n");
+	struct iphdr *iph =  packet_to_ip_hdr(packet);
+	u32 daddr = ntohl(iph->daddr);
+	//lookup rtable
+	rt_entry_t *match = longest_prefix_match(daddr);
+	if(match==NULL){
+		free(packet);
+		return ;
+	}
+	//get next ip addr
+	u32 next_ip = match->gw ? match->gw : daddr;
+	//forward
+	iface_send_packet_by_arp(match->iface, next_ip, packet, len);
+
 }
