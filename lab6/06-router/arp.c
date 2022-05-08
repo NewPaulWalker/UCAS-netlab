@@ -25,7 +25,7 @@ void arp_send_request(iface_info_t *iface, u32 dst_ip)
 	//arp
 	arp->arp_hrd = htons(ARPHRD_ETHER);
 	arp->arp_pro = htons(ETH_P_IP);
-	arp->hln = ETH_ALEN;
+	arp->arp_hln = ETH_ALEN;
 	arp->arp_pln = 4;
 	arp->arp_op = htons(ARPOP_REQUEST);
 	memcpy(arp->arp_sha, iface->mac, ETH_ALEN);
@@ -51,7 +51,7 @@ void arp_send_reply(iface_info_t *iface, struct ether_arp *req_hdr)
 	//arp
 	arp->arp_hrd = htons(ARPHRD_ETHER);
 	arp->arp_pro = htons(ETH_P_IP);
-	arp->hln = ETH_ALEN;
+	arp->arp_hln = ETH_ALEN;
 	arp->arp_pln = 4;
 	arp->arp_op = htons(ARPOP_REPLY);
 	memcpy(arp->arp_sha, iface->mac, ETH_ALEN);

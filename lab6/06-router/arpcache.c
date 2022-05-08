@@ -93,7 +93,7 @@ void arpcache_append_packet(iface_info_t *iface, u32 ip4, char *packet, int len)
 		req_entry->iface = iface;
 		req_entry->ip4 = ip4;
 		init_list_head(&req_entry->cached_packets);
-		req_entry->sent = time();
+		req_entry->sent = time(NULL);
 		req_entry->retries = 1;
 		//send arp request
 		arp_send_request(iface, ip4);
@@ -134,7 +134,7 @@ void arpcache_insert(u32 ip4, u8 mac[ETH_ALEN])
 	}
 	arpcache.entries[i].valid = 1;
 	arpcache.entries[i].ip4 = ip4;
-	arpcache.entries[i].added = time();
+	arpcache.entries[i].added = time(NULL);
 	memcpy(arpcache.entries[i].mac, mac, ETH_ALEN);
 
 	// send pending packets
@@ -181,7 +181,7 @@ void *arpcache_sweep(void *arg)
 			}
 		}
 		//For the pending packets
-		time_t now = time();
+		time_t now = time(NULL);
 		struct list_head drop_list;
 		init_list_head(&drop_list);
 		struct arp_req *req_entry = NULL, *req_q;
