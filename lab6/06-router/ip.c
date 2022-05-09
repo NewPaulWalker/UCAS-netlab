@@ -25,6 +25,7 @@ void handle_ip_packet(iface_info_t *iface, char *packet, int len)
 	if((daddr==iface->ip) && (protocol==IPPROTO_ICMP) && (type==ICMP_ECHOREQUEST)){
 		//send ICMP echo reply
 		icmp_send_packet(packet, len, ICMP_ECHOREPLY, 0);
+		free(packet);
 		return ;
 	}
 
@@ -34,6 +35,7 @@ void handle_ip_packet(iface_info_t *iface, char *packet, int len)
 	iph->ttl --;
 	if(iph->ttl<=0){
 		icmp_send_packet(packet, len, ICMP_TIME_EXCEEDED, ICMP_EXC_TTL);
+		free(packet);
 		return ;
 	}
 	//checksum
@@ -42,6 +44,7 @@ void handle_ip_packet(iface_info_t *iface, char *packet, int len)
 	rt_entry_t *match = longest_prefix_match(daddr);
 	if(match==NULL){
 		icmp_send_packet(packet, len, ICMP_DEST_UNREACH, ICMP_NET_UNREACH);
+		free(packet);
 		return ;
 	}
 	//get next ip addr

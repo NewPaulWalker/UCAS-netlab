@@ -24,7 +24,7 @@ void icmp_send_packet(const char *in_pkt, int len, u8 type, u8 code)
 	}
 	res_len = ETHER_HDR_SIZE + IP_BASE_HDR_SIZE + icmp_len;
 	//malloc
-	char *res = malloc(res_len);
+	char *res = (char *)malloc(res_len);
 	memset(res, 0, res_len);
 	// init iph
 	struct iphdr *res_iph = packet_to_ip_hdr(res);
@@ -41,15 +41,13 @@ void icmp_send_packet(const char *in_pkt, int len, u8 type, u8 code)
 	// init icmp
 	struct icmphdr *icmph = IP_DATA(res_iph);
 	if(type==ICMP_ECHOREPLY){
-		memcpy(icmph + ICMP_HDR_SIZE, ipdata + ICMP_HDR_SIZE, icmp_len-ICMP_HDR_SIZE);
+		memcpy(icmph, ipdata, icmp_len);
 	}else{
 		memcpy(icmph + ICMP_HDR_SIZE, iph, icmp_len-ICMP_HDR_SIZE);
 	}
 	icmph->type = type;
 	icmph->code = code;
 	icmph->checksum = icmp_checksum(icmph,icmp_len);
-	//free
-	free(in_pkt);
 	//send
 	ip_send_packet(res, res_len);
 }
