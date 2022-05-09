@@ -39,11 +39,12 @@ void icmp_send_packet(const char *in_pkt, int len, u8 type, u8 code)
 		ip_init_hdr(res_iph, match->iface->ip, ntohl(iph->saddr), IP_BASE_HDR_SIZE+icmp_len, IPPROTO_ICMP);
 	}
 	// init icmp
-	struct icmphdr *icmph = IP_DATA(res_iph);
+	char *res_ipdata = IP_DATA(res_iph);
+	struct icmphdr *icmph = (struct icmphdr*)res_ipdata;
 	if(type==ICMP_ECHOREPLY){
-		memcpy(icmph, ipdata, icmp_len);
+		memcpy(res_ipdata, ipdata, icmp_len);
 	}else{
-		memcpy(icmph + ICMP_HDR_SIZE, iph, icmp_len-ICMP_HDR_SIZE);
+		memcpy(res_ipdata + ICMP_HDR_SIZE, iph, icmp_len-ICMP_HDR_SIZE);
 	}
 	icmph->type = type;
 	icmph->code = code;

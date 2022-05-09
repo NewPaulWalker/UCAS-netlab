@@ -186,8 +186,9 @@ void *arpcache_sweep(void *arg)
 		init_list_head(&drop_list);
 		struct arp_req *req_entry = NULL, *req_q;
 		list_for_each_entry_safe(req_entry, req_q, &(arpcache.req_list), list) {
-			if(now-req_entry->sent > 1){
+			if(now-req_entry->sent >= 1){
 				req_entry->retries++;
+				req_entry->sent = now;
 				if(req_entry->retries <= ARP_REQUEST_MAX_RETRIES){
 					arp_send_request(req_entry->iface, req_entry->ip4);
 				}else{
