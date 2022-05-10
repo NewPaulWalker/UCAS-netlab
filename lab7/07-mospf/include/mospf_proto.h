@@ -9,7 +9,7 @@
 #define MOSPF_VERSION 			2	// MOSPF Version
 
 #define MOSPF_ALLSPFRouters 	0xe0000005 // 224.0.0.5
-char mospf_hello_mac[ETH_ALEN] = {0x1, 0x0, 0x5e, 0x0, 0x0, 0x5};
+
 #define MOSPF_TYPE_HELLO		1
 #define MOSPF_TYPE_LSU			4
 

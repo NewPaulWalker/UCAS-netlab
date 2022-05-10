@@ -93,6 +93,7 @@ void *sending_mospf_hello_thread(void *param)
 			//ether header
 			struct ether_header *eh = (struct ether_header*)packet;
 			eh->ether_type = htons(ETH_P_IP);
+			char mospf_hello_mac[ETH_ALEN] = {0x1, 0x0, 0x5e, 0x0, 0x0, 0x5};
 			memcpy(eh->ether_dhost, mospf_hello_mac, ETH_ALEN);
 			memcpy(eh->ether_shost, entry->mac, ETH_ALEN);
 			iface_send_packet(entry, packet, ETHER_HDR_SIZE + IP_BASE_HDR_SIZE + MOSPF_HDR_SIZE + MOSPF_HELLO_SIZE);
@@ -148,11 +149,11 @@ void *sending_mospf_lsu_thread(void *param)
 			//forward
 			list_for_each_entry(iface, &instance->iface_list, list){
 				mospf_nbr_t *nbr;
-				list_for_each_entry(nbr, &iface_entry->nbr_list, list){
+				list_for_each_entry(nbr, &iface->nbr_list, list){
 					char *pkt = (char*)malloc(ETHER_HDR_SIZE + IP_BASE_HDR_SIZE + ntohs(mospfh->len));
 					memcpy(pkt + ETHER_HDR_SIZE + IP_BASE_HDR_SIZE, packet, ntohs(mospfh->len));
 					struct iphdr *iph = packet_to_ip_hdr(pkt);						
-					ip_init_hdr(iph, iface_entry->ip, nbr->nbr_ip, IP_BASE_HDR_SIZE + ntohs(mospfh->len), IPPROTO_MOSPF);
+					ip_init_hdr(iph, iface->ip, nbr->nbr_ip, IP_BASE_HDR_SIZE + ntohs(mospfh->len), IPPROTO_MOSPF);
 					ip_send_packet(pkt, ETHER_HDR_SIZE + IP_BASE_HDR_SIZE + ntohs(mospfh->len));
 				}
 			}
