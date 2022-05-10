@@ -59,11 +59,11 @@ void *print_db_thread(void *param){
 	pthread_mutex_lock(&mospf_lock);
 	mospf_db_entry_t * db_entry;
 	list_for_each_entry(db_entry, &mospf_db, list) {
-		printf("router: " IP_FMT , HOST_IP_FMT_STR(db_entry->rid));
 		for (int i = 0; i < db_entry->nadv; i++) {
-			printf("\tnbr "IP_FMT ":\t", HOST_IP_FMT_STR(db_entry->array[i].rid));
-			printf(IP_FMT ",\t", HOST_IP_FMT_STR(db_entry->array[i].network));
-			printf(IP_FMT "\n", HOST_IP_FMT_STR(db_entry->array[i].mask));
+			printf(IP_FMT "\t" IP_FMT "\t" IP_FMT "\t" IP_FMT"\r\n",	HOST_IP_FMT_STR(db_entry->rid), \
+												HOST_IP_FMT_STR(db_entry->array[i].network), \
+												HOST_IP_FMT_STR(db_entry->array[i].mask), \
+												HOST_IP_FMT_STR(db_entry->array[i].rid));
 		}
 	}
 	fflush(stdout);
