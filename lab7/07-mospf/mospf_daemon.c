@@ -265,9 +265,9 @@ void handle_mospf_lsu(iface_info_t *iface, char *packet, int len)
 		db_entry->array = (struct mospf_lsa*)malloc(sizeof(struct mospf_lsa)*nadv);
 		for(int i=0;i<nadv;i++){
 			struct mospf_lsa *lsa = (struct mospf_lsa*)(lsu + MOSPF_LSU_SIZE + i * MOSPF_LSA_SIZE);
-			db_entry->array[i].network = (ntohl)(lsa->network);
-			db_entry->array[i].mask = (ntohl)(lsa->mask);
-			db_entry->array[i].rid = (ntohl)(lsa->rid);
+			db_entry->array[i].network = ntohl(lsa->network);
+			db_entry->array[i].mask = ntohl(lsa->mask);
+			db_entry->array[i].rid = ntohl(lsa->rid);
 		}
 	}else if(db_entry->seq < seq){
 		db_entry->seq = seq;
@@ -277,9 +277,9 @@ void handle_mospf_lsu(iface_info_t *iface, char *packet, int len)
 		db_entry->array = (struct mospf_lsa*)malloc(sizeof(struct mospf_lsa)*nadv);
 		for(int i=0;i<nadv;i++){
 			struct mospf_lsa *lsa = (struct mospf_lsa*)(lsu + MOSPF_LSU_SIZE + i * MOSPF_LSA_SIZE);
-			db_entry->array[i].network = (ntohl)(lsa->network);
-			db_entry->array[i].mask = (ntohl)(lsa->mask);
-			db_entry->array[i].rid = (ntohl)(lsa->rid);
+			db_entry->array[i].network = ntohl(lsa->network);
+			db_entry->array[i].mask = ntohl(lsa->mask);
+			db_entry->array[i].rid = ntohl(lsa->rid);
 		}
 	}
 	//ttl-1
