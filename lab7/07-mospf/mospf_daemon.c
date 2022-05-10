@@ -43,15 +43,36 @@ void *sending_mospf_lsu_thread(void *param);
 void *checking_nbr_thread(void *param);
 void *checking_database_thread(void *param);
 void *print_db_thread(void *param);
+void *print_nbr_thread(void *param);
 
 void mospf_run()
 {
-	pthread_t hello, lsu, nbr, db, print_db;
+	pthread_t hello, lsu, nbr, db, print_db, print_nbr;
 	pthread_create(&hello, NULL, sending_mospf_hello_thread, NULL);
 	pthread_create(&lsu, NULL, sending_mospf_lsu_thread, NULL);
 	pthread_create(&nbr, NULL, checking_nbr_thread, NULL);
 	pthread_create(&db, NULL, checking_database_thread, NULL);
 	pthread_create(&print_db, NULL, print_db_thread, NULL);
+	pthread_create(&print_nbr, NULL, print_nbr_thread, NULL);
+}
+
+void *print_nbr_thread(void *param){
+	sleep(50);
+	pthread_mutex_lock(&mospf_lock);
+	iface_info_t *iface;
+	list_for_each_entry(iface, &instance->iface_list, list){
+		mospf_nbr_t *nbr;
+		list_for_each_entry(nbr, &iface->nbr_list, list){
+			printf(IP_FMT "\t" IP_FMT "\t" IP_FMT "\t" IP_FMT "\r\n",\
+							HOST_IP_FMT_STR(iface->ip),\
+							HOST_IP_FMT_STR(nbr->nbr_id),\
+							HOST_IP_FMT_STR(nbr->nbr_ip),\
+							HOST_IP_FMT_STR(nbr->nbr_mask));
+		}
+	}
+	fflush(stdout);
+	pthread_mutex_unlock(&mospf_lock);
+	return NULL;
 }
 
 void *print_db_thread(void *param){
@@ -128,15 +149,15 @@ void *sending_mospf_lsu_thread(void *param)
 				if(iface->num_nbr){
 					mospf_nbr_t *nbr;
 					list_for_each_entry(nbr, &iface->nbr_list, list){
-						lsa[iadv].network = htonl(nbr->nbr_ip & nbr->nbr_mask);
-						lsa[iadv].mask = htonl(nbr->nbr_mask);
+						lsa[iadv].network = htonl(iface->ip & iface->mask);
+						lsa[iadv].mask = htonl(iface->mask);
 						lsa[iadv].rid = htonl(nbr->nbr_id);
 						iadv++;
 					}
 				}else{
-					lsa[iadv].network = htonl(0);
-					lsa[iadv].mask = htonl(0);
-					lsa[iadv].rid = htonl(0);
+					lsa[iadv].network = htonl(iface->ip & iface->mask);
+					lsa[iadv].mask = htonl(iface->mask);
+					lsa[iadv].rid = 0;
 					iadv++;
 				}
 			}
@@ -249,37 +270,39 @@ void handle_mospf_lsu(iface_info_t *iface, char *packet, int len)
 	u32 rid = ntohl(mospfh->rid);
 	u16 seq = ntohs(lsu->seq);
 	int nadv = ntohl(lsu->nadv);
-	mospf_db_entry_t *db_entry;
-	list_for_each_entry(db_entry, &mospf_db, list){
-		if(db_entry->rid == rid){
-			break;
+	if(rid!=instance->router_id){
+		mospf_db_entry_t *db_entry;
+		list_for_each_entry(db_entry, &mospf_db, list){
+			if(db_entry->rid == rid){
+				break;
+			}
 		}
-	}
-	if(&db_entry->list == &mospf_db){
-		db_entry = (mospf_db_entry_t*)malloc(sizeof(mospf_db_entry_t));
-		list_add_tail(&db_entry->list, &mospf_db);
-		db_entry->rid = rid;
-		db_entry->seq = seq;
-		db_entry->nadv = nadv;
-		db_entry->alive = 0;
-		db_entry->array = (struct mospf_lsa*)malloc(sizeof(struct mospf_lsa)*nadv);
-		for(int i=0;i<nadv;i++){
-			struct mospf_lsa *lsa = (struct mospf_lsa*)(lsu + MOSPF_LSU_SIZE + i * MOSPF_LSA_SIZE);
-			db_entry->array[i].network = ntohl(lsa->network);
-			db_entry->array[i].mask = ntohl(lsa->mask);
-			db_entry->array[i].rid = ntohl(lsa->rid);
-		}
-	}else if(db_entry->seq < seq){
-		db_entry->seq = seq;
-		db_entry->nadv = nadv;
-		db_entry->alive = 0;
-		free(db_entry->array);
-		db_entry->array = (struct mospf_lsa*)malloc(sizeof(struct mospf_lsa)*nadv);
-		for(int i=0;i<nadv;i++){
-			struct mospf_lsa *lsa = (struct mospf_lsa*)(lsu + MOSPF_LSU_SIZE + i * MOSPF_LSA_SIZE);
-			db_entry->array[i].network = ntohl(lsa->network);
-			db_entry->array[i].mask = ntohl(lsa->mask);
-			db_entry->array[i].rid = ntohl(lsa->rid);
+		if(&db_entry->list == &mospf_db){
+			db_entry = (mospf_db_entry_t*)malloc(sizeof(mospf_db_entry_t));
+			list_add_tail(&db_entry->list, &mospf_db);
+			db_entry->rid = rid;
+			db_entry->seq = seq;
+			db_entry->nadv = nadv;
+			db_entry->alive = 0;
+			db_entry->array = (struct mospf_lsa*)malloc(sizeof(struct mospf_lsa)*nadv);
+			for(int i=0;i<nadv;i++){
+				struct mospf_lsa *lsa = (struct mospf_lsa*)((char*)lsu + MOSPF_LSU_SIZE + i * MOSPF_LSA_SIZE);
+				db_entry->array[i].network = ntohl(lsa->network);
+				db_entry->array[i].mask = ntohl(lsa->mask);
+				db_entry->array[i].rid = ntohl(lsa->rid);
+			}
+		}else if(db_entry->seq < seq){
+			db_entry->seq = seq;
+			db_entry->nadv = nadv;
+			db_entry->alive = 0;
+			free(db_entry->array);
+			db_entry->array = (struct mospf_lsa*)malloc(sizeof(struct mospf_lsa)*nadv);
+			for(int i=0;i<nadv;i++){
+				struct mospf_lsa *lsa = (struct mospf_lsa*)((char*)lsu + MOSPF_LSU_SIZE + i * MOSPF_LSA_SIZE);
+				db_entry->array[i].network = ntohl(lsa->network);
+				db_entry->array[i].mask = ntohl(lsa->mask);
+				db_entry->array[i].rid = ntohl(lsa->rid);
+			}
 		}
 	}
 	//ttl-1
