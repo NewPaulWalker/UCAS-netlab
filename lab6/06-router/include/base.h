@@ -24,11 +24,20 @@
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 
+#define DYNAMIC_ROUTING
+
 typedef struct {
 	struct list_head iface_list;	// the list of interfaces
 	int nifs;						// number of interfaces
 	struct pollfd *fds;				// structure used to poll packets among 
 								    // all the interfaces
+#ifdef DYNAMIC_ROUTING
+	// used for mospf routing
+	u32 area_id;	
+	u32 router_id;
+	u16 sequence_num;
+	int lsuint;
+#endif
 } ustack_t;
 
 extern ustack_t *instance;
@@ -43,6 +52,12 @@ typedef struct {
 	u32 mask;					// Network Mask (in host byte order)
 	char name[16];				// name of this interface
 	char ip_str[16];			// readable IP address
+#ifdef DYNAMIC_ROUTING
+	// list of mospf neighbors
+	int helloint;
+	int num_nbr;
+	struct list_head nbr_list;
+#endif
 } iface_info_t;
 
 void init_ustack();
