@@ -26,7 +26,7 @@ typedef struct{
 	struct list_head list;
 	u32 nid;
 	int dist;
-}rt_net_note;
+}rt_net_node;
 
 extern struct list_head net_list;
 
