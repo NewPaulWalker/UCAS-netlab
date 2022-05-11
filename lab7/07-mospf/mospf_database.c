@@ -34,7 +34,7 @@ void add_net(rt_net_note *pre_net, u32 network){
 				break;
 			}
 		}
-		list_insert(&net_node->list, &after->list.prev, after);
+		list_insert(&net_node->list, after->list.prev, &after->list);
 	}
 }
 
@@ -78,6 +78,15 @@ void add_route(u32 dest, u32 mask, u32 pre_net){
 	add_rt_entry(new);
 }
 
+void print_net_list(){
+	rt_net_note *net_node;
+	printf("---------------\r\n");
+	list_for_each_entry(net_node, &net_list, list){
+		printf(IP_FMT"\tdist:%d\r\n",HOST_IP_FMT_STR(net_node->nid), net_node->dist);
+	}
+	printf("----------------\r\n");
+}
+
 void update_rtable(){
 	pthread_mutex_lock(&rtable_lock);
 	//clear learned entry & init net list
@@ -111,6 +120,10 @@ void update_rtable(){
 				}
 			}
 		}
+	}
+	list_for_each_entry_safe(net_node, net_q, &net_list, list){
+		list_delete_entry(&net_node->list);
+		free(net_node);
 	}
 	pthread_mutex_unlock(&rtable_lock);
 }
