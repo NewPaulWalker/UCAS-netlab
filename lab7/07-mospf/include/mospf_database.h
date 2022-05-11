@@ -17,8 +17,6 @@ typedef struct {
 	struct mospf_lsa *array;
 } mospf_db_entry_t;
 
-pthread_mutex_t rtable_lock;
-
 void init_mospf_db();
 void init_net_list();
 void add_net(rt_net_note *pre_net, u32 network);
