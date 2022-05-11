@@ -28,6 +28,10 @@ typedef struct{
 	int dist;
 }rt_net_note;
 
+extern struct list_head net_list;
+
+extern pthread_mutex_t rtable_lock;
+
 void init_rtable();
 void load_static_rtable();
 void clear_rtable();

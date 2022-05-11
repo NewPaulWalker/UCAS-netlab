@@ -41,6 +41,27 @@ void handle_ip_packet(iface_info_t *iface, char *packet, int len)
 		free(packet);
 	}
 	else {
-		ip_forward_packet(daddr, packet, len);
+		//forward the packet
+
+		//ttl-1
+		ip->ttl --;
+		if(ip->ttl<=0){
+			icmp_send_packet(packet, len, ICMP_TIME_EXCEEDED, ICMP_EXC_TTL);
+			free(packet);
+			return ;
+		}
+		//checksum
+		ip->checksum = ip_checksum(ip);
+		//lookup rtable
+		rt_entry_t *match = longest_prefix_match(daddr);
+		if(match==NULL){
+			icmp_send_packet(packet, len, ICMP_DEST_UNREACH, ICMP_NET_UNREACH);
+			free(packet);
+			return ;
+		}
+		//get next ip addr
+		u32 next_ip = match->gw ? match->gw : daddr;
+		//forward
+		iface_send_packet_by_arp(match->iface, next_ip, packet, len);	
 	}
 }

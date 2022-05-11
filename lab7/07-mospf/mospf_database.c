@@ -13,12 +13,6 @@ void init_mospf_db()
 	init_list_head(&mospf_db);
 }
 
-struct list_head net_list;
-
-void init_net_list(){
-	init_list_head(&net_list);
-}
-
 void add_net(rt_net_note *pre_net, u32 network){
 	rt_net_note *net_node = (rt_net_note*)malloc(sizeof(rt_net_note));
 	net_node->nid = network;

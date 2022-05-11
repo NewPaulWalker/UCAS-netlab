@@ -36,8 +36,6 @@ void mospf_init()
 	}
 
 	init_mospf_db();
-	init_net_list();
-	pthread_mutex_init(&rtable_lock, NULL);
 }
 
 void *sending_mospf_hello_thread(void *param);
@@ -64,6 +62,7 @@ void *print_rt_thread(void *param){
 	sleep(70);
 	pthread_mutex_lock(&rtable_lock);
 	print_rtable();
+	fflush(stdout);
 	pthread_mutex_unlock(&rtable_lock);
 	return NULL;
 }
