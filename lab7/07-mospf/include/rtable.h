@@ -22,6 +22,12 @@ typedef struct {
 
 extern struct list_head rtable;
 
+typedef struct{
+	struct list_head list;
+	u32 nid;
+	int dist;
+}rt_net_note;
+
 void init_rtable();
 void load_static_rtable();
 void clear_rtable();

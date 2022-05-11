@@ -2,7 +2,7 @@
 #include "mospf_proto.h"
 #include "mospf_nbr.h"
 #include "mospf_database.h"
-
+#include "rtable.h"
 #include "ip.h"
 
 #include "list.h"
@@ -36,6 +36,8 @@ void mospf_init()
 	}
 
 	init_mospf_db();
+	init_net_list();
+	pthread_mutex_init(&rtable_lock, NULL);
 }
 
 void *sending_mospf_hello_thread(void *param);
@@ -44,16 +46,26 @@ void *checking_nbr_thread(void *param);
 void *checking_database_thread(void *param);
 void *print_db_thread(void *param);
 void *print_nbr_thread(void *param);
+void *print_rt_thread(void *param);
 
 void mospf_run()
 {
-	pthread_t hello, lsu, nbr, db, print_db, print_nbr;
+	pthread_t hello, lsu, nbr, db, print_db, print_nbr, print_rt;
 	pthread_create(&hello, NULL, sending_mospf_hello_thread, NULL);
 	pthread_create(&lsu, NULL, sending_mospf_lsu_thread, NULL);
 	pthread_create(&nbr, NULL, checking_nbr_thread, NULL);
 	pthread_create(&db, NULL, checking_database_thread, NULL);
 	pthread_create(&print_db, NULL, print_db_thread, NULL);
 	pthread_create(&print_nbr, NULL, print_nbr_thread, NULL);
+	pthread_create(&print_rt, NULL, print_rt_thread, NULL);
+}
+
+void *print_rt_thread(void *param){
+	sleep(70);
+	pthread_mutex_lock(&rtable_lock);
+	print_rtable();
+	pthread_mutex_unlock(&rtable_lock);
+	return NULL;
 }
 
 void *print_nbr_thread(void *param){
@@ -217,6 +229,7 @@ void *checking_database_thread(void *param)
 	while(1){
 		sleep(1);
 		pthread_mutex_lock(&mospf_lock);
+		int changed = 0;
 		mospf_db_entry_t *db_entry, *q;
 		list_for_each_entry_safe(db_entry, q, &mospf_db, list){
 			db_entry->alive++;
@@ -224,7 +237,13 @@ void *checking_database_thread(void *param)
 				free(db_entry->array);
 				list_delete_entry(&db_entry->list);
 				free(db_entry);
+				changed = 1;
 			}
+		}
+		if(changed){
+			//?会死锁吗？
+			//?若会死锁，是否可以先释放锁，再先获得rtable锁来完成？
+			update_rtable();
 		}
 		pthread_mutex_unlock(&mospf_lock);
 	}
@@ -271,6 +290,7 @@ void handle_mospf_lsu(iface_info_t *iface, char *packet, int len)
 	u16 seq = ntohs(lsu->seq);
 	int nadv = ntohl(lsu->nadv);
 	if(rid!=instance->router_id){
+		int changed = 0;
 		mospf_db_entry_t *db_entry;
 		list_for_each_entry(db_entry, &mospf_db, list){
 			if(db_entry->rid == rid){
@@ -278,6 +298,7 @@ void handle_mospf_lsu(iface_info_t *iface, char *packet, int len)
 			}
 		}
 		if(&db_entry->list == &mospf_db){
+			changed = 1;
 			db_entry = (mospf_db_entry_t*)malloc(sizeof(mospf_db_entry_t));
 			list_add_tail(&db_entry->list, &mospf_db);
 			db_entry->rid = rid;
@@ -292,6 +313,7 @@ void handle_mospf_lsu(iface_info_t *iface, char *packet, int len)
 				db_entry->array[i].rid = ntohl(lsa->rid);
 			}
 		}else if(db_entry->seq < seq){
+			changed = 1;
 			db_entry->seq = seq;
 			db_entry->nadv = nadv;
 			db_entry->alive = 0;
@@ -303,6 +325,9 @@ void handle_mospf_lsu(iface_info_t *iface, char *packet, int len)
 				db_entry->array[i].mask = ntohl(lsa->mask);
 				db_entry->array[i].rid = ntohl(lsa->rid);
 			}
+		}
+		if(changed){
+			update_rtable();
 		}
 	}
 	//ttl-1
