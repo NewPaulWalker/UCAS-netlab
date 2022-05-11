@@ -19,7 +19,7 @@ typedef struct {
 
 void init_mospf_db();
 void init_net_list();
-void add_net(rt_net_note *pre_net, u32 network);
+void add_net(rt_net_node *pre_net, u32 network);
 int net_added(u32 network);
 void add_route(u32 dest, u32 mask, u32 pre_net);
 void update_rtable();

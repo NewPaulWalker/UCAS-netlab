@@ -14,14 +14,14 @@ void init_mospf_db()
 	init_list_head(&mospf_db);
 }
 
-void add_net(rt_net_note *pre_net, u32 network){
-	rt_net_note *net_node = (rt_net_note*)malloc(sizeof(rt_net_note));
+void add_net(rt_net_node *pre_net, u32 network){
+	rt_net_node *net_node = (rt_net_node*)malloc(sizeof(rt_net_node));
 	net_node->nid = network;
 	net_node->dist = pre_net==NULL ? 0 : pre_net->dist + 1;
 	if(list_empty(&net_list)){
 		list_add_tail(&net_node->list, &net_list);
 	}else{
-		rt_net_note *after;
+		rt_net_node *after;
 		list_for_each_entry(after, &net_list, list){
 			if(after->dist < net_node->dist){
 				continue;
@@ -40,7 +40,7 @@ void add_net(rt_net_note *pre_net, u32 network){
 }
 
 int net_added(u32 network){
-	rt_net_note *net_node;
+	rt_net_node *net_node;
 	list_for_each_entry(net_node, &net_list, list){
 		if(net_node->nid == network)
 			return 1;
@@ -80,7 +80,7 @@ void add_route(u32 dest, u32 mask, u32 pre_net){
 }
 
 void print_net_list(){
-	rt_net_note *net_node;
+	rt_net_node *net_node;
 	printf("---------------\r\n");
 	list_for_each_entry(net_node, &net_list, list){
 		printf(IP_FMT"\tdist:%d\r\n",HOST_IP_FMT_STR(net_node->nid), net_node->dist);
@@ -111,7 +111,7 @@ void update_rtable(){
 		add_net(NULL, rt_entry->dest & rt_entry->mask);
 	}
 	//generate new entry
-	rt_net_note *net_node, *net_q;
+	rt_net_node *net_node, *net_q;
 	list_for_each_entry(net_node, &net_list, list){
 		mospf_db_entry_t *db_entry;
 		list_for_each_entry(db_entry, &mospf_db, list){
