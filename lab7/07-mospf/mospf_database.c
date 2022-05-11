@@ -87,25 +87,36 @@ void print_net_list(){
 	printf("----------------\r\n");
 }
 
+void print_db(){
+	mospf_db_entry_t * db_entry;
+	list_for_each_entry(db_entry, &mospf_db, list) {
+		for (int i = 0; i < db_entry->nadv; i++) {
+			printf(IP_FMT "\t" IP_FMT "\t" IP_FMT "\t" IP_FMT"\r\n",	HOST_IP_FMT_STR(db_entry->rid), \
+												HOST_IP_FMT_STR(db_entry->array[i].network), \
+												HOST_IP_FMT_STR(db_entry->array[i].mask), \
+												HOST_IP_FMT_STR(db_entry->array[i].rid));
+		}
+	}
+	fflush(stdout);
+}
+
 void update_rtable(){
 	pthread_mutex_lock(&rtable_lock);
 	//clear learned entry & init net list
-	rt_entry_t * rt_entry, *rt_q;
-	list_for_each_entry_safe(rt_entry, rt_q, &rtable, list){
-		if(rt_entry->gw){
-			remove_rt_entry(rt_entry);
-		}else{
-			add_net(NULL, rt_entry->dest & rt_entry->mask);
-		}
+	clear_rtable();
+	load_rtable_from_kernel();
+	rt_entry_t * rt_entry;
+	list_for_each_entry(rt_entry, &rtable, list){
+		add_net(NULL, rt_entry->dest & rt_entry->mask);
 	}
 	//generate new entry
 	rt_net_note *net_node, *net_q;
-	list_for_each_entry_safe(net_node, net_q, &net_list, list){
+	list_for_each_entry(net_node, &net_list, list){
 		mospf_db_entry_t *db_entry;
 		list_for_each_entry(db_entry, &mospf_db, list){
 			int i,j;
 			for(i=0;i<db_entry->nadv;i++){
-				if(net_node->nid == db_entry->array[i].network){
+				if(net_node->nid == db_entry->array[i].network && db_entry->array[i].rid!=0){
 					break;
 				}
 			}
