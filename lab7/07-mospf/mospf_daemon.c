@@ -55,8 +55,8 @@ void mospf_run()
 	pthread_create(&lsu, NULL, sending_mospf_lsu_thread, NULL);
 	pthread_create(&nbr, NULL, checking_nbr_thread, NULL);
 	pthread_create(&db, NULL, checking_database_thread, NULL);
-	pthread_create(&print_db, NULL, print_db_thread, NULL);
-	pthread_create(&print_nbr, NULL, print_nbr_thread, NULL);
+	//pthread_create(&print_db, NULL, print_db_thread, NULL);
+	//pthread_create(&print_nbr, NULL, print_nbr_thread, NULL);
 	pthread_create(&print_rt, NULL, print_rt_thread, NULL);
 }
 

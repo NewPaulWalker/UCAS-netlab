@@ -3,7 +3,7 @@
 
 #include "base.h"
 #include "list.h"
-
+#include "rtable.h"
 #include "mospf_proto.h"
 
 extern struct list_head mospf_db;
