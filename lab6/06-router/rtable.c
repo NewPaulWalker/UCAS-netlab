@@ -7,9 +7,15 @@
 
 struct list_head rtable;
 
+struct list_head net_list;
+
+pthread_mutex_t rtable_lock;
+
 void init_rtable()
 {
 	init_list_head(&rtable);
+	init_list_head(&net_list);
+	pthread_mutex_init(&rtable_lock, NULL);
 }
 
 rt_entry_t *new_rt_entry(u32 dest, u32 mask, u32 gw, iface_info_t *iface)

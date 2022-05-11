@@ -30,7 +30,7 @@ void ip_init_hdr(struct iphdr *ip, u32 saddr, u32 daddr, u16 len, u8 proto)
 rt_entry_t *longest_prefix_match(u32 dst)
 {
 	//fprintf(stderr, "TODO: longest prefix match for the packet.\n");
-
+	pthread_mutex_lock(&rtable_lock);
 	rt_entry_t *entry, *match = NULL;
 	list_for_each_entry(entry,&rtable,list){
 		if( (dst&entry->mask) == (entry->dest&entry->mask) ){
@@ -38,6 +38,7 @@ rt_entry_t *longest_prefix_match(u32 dst)
 				match = entry;
 		}
 	}
+	pthread_mutex_unlock(&rtable_lock);
 	return match;
 }
 
