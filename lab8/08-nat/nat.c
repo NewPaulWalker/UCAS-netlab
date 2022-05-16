@@ -17,7 +17,7 @@ static iface_info_t *if_name_to_iface(const char *if_name)
 {
 	iface_info_t *iface = NULL;
 	list_for_each_entry(iface, &instance->iface_list, list) {
-		if (strncmp(iface->name, if_name, strlen(iface->name)) == 0);
+		if (strncmp(iface->name, if_name, strlen(iface->name)) == 0)
 			return iface;
 	}
 
