@@ -284,6 +284,7 @@ int parse_config(const char *filename)
 				char *external_ip = dnat + 12;
 				ip = 0;
 				for(int i=0;i<4;i++){
+					ip = ip << 8;
 					num = 0;
 					while(*external_ip!='.' && *external_ip!=':'){
 						num = num * 10 + *external_ip - '0';
@@ -291,7 +292,6 @@ int parse_config(const char *filename)
 					}
 					external_ip++;
 					ip |= num;
-					ip = ip << 8;
 				}
 				rule->external_ip = ip;
 				port=0;
@@ -304,6 +304,7 @@ int parse_config(const char *filename)
 				internal_ip = internal_ip + 3;
 				ip = 0;
 				for(int i=0;i<4;i++){
+					ip = ip << 8;
 					num = 0;
 					while(*internal_ip!='.' && *internal_ip!=':'){
 						num = num * 10 + *internal_ip - '0';
@@ -311,11 +312,10 @@ int parse_config(const char *filename)
 					}
 					internal_ip++;
 					ip |= num;
-					ip = ip << 8;
 				}
 				rule->internal_ip = ip;
 				port=0;
-				while(*internal_ip!=' '){
+				while(*internal_ip >= '0' && *internal_ip <= '9'){
 					port = port * 10 + *internal_ip - '0';
 					internal_ip++;
 				}
