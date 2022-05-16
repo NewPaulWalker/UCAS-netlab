@@ -39,7 +39,7 @@ static int get_packet_direction(char *packet)
 		if(rt_entry->iface == nat.external_iface){
 			return DIR_OUT;
 		}
-	}else if(rt_entry->iface == nat.external_iface && daddr == nat.external_iface){
+	}else if(rt_entry->iface == nat.external_iface && daddr == nat.external_iface->ip){
 		return DIR_IN;
 	}
 	return DIR_INVALID;
