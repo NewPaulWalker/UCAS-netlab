@@ -17,6 +17,9 @@ static iface_info_t *if_name_to_iface(const char *if_name)
 {
 	iface_info_t *iface = NULL;
 	list_for_each_entry(iface, &instance->iface_list, list) {
+		//此处还是应使用strcmp,因为此处只能保证iface数不超过10的情况，
+		//一旦超过10，则n1-eth11也会和n1-eth1匹配
+		//但绝大多数情况适用，故不再进行更改，读者可适当对parse函数进行更改
 		if (strncmp(iface->name, if_name, strlen(iface->name)) == 0)
 			return iface;
 	}
