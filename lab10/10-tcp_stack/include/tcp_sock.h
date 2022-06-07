@@ -112,6 +112,8 @@ struct tcp_sock {
 	u32 ssthresh;
 };
 
+typedef struct tcp_sock tcp_sock_t;
+
 void tcp_set_state(struct tcp_sock *tsk, int state);
 
 int tcp_sock_accept_queue_full(struct tcp_sock *tsk);

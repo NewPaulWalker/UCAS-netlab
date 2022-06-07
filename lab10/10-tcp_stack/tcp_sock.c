@@ -101,7 +101,7 @@ struct tcp_sock *tcp_sock_lookup_established(u32 saddr, u32 daddr, u16 sport, u1
 	//fprintf(stdout, "TODO: implement %s please.\n", __FUNCTION__);
 	int key = tcp_hash_function(saddr, daddr, sport, dport);
 	pthread_mutex_lock(&tcp_sock_table_lock);
-	struct tcp_scok *entry;
+	tcp_sock_t *entry;
 	list_for_each_entry(entry, &tcp_established_sock_table[key], hash_list){
 		if(entry->sk_sip == saddr && entry->sk_sport == sport && 
 			entry->sk_dip == daddr && entry->sk_dport == dport){
@@ -121,7 +121,7 @@ struct tcp_sock *tcp_sock_lookup_listen(u32 saddr, u16 sport)
 	//fprintf(stdout, "TODO: implement %s please.\n", __FUNCTION__);
 	int key = tcp_hash_function(0, 0, sport, 0);
 	pthread_mutex_lock(&tcp_sock_table_lock);
-	struct tcp_scok *entry;
+	tcp_sock_t *entry;
 	list_for_each_entry(entry, &tcp_listen_sock_table[key], hash_list){
 		if(entry->sk_sport == sport){
 			pthread_mutex_unlock(&tcp_sock_table_lock);
