@@ -72,6 +72,7 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 			csk->parent = tsk;
 			list_add_tail(&csk->list, &tsk->listen_queue);
 			tcp_set_state(csk, TCP_SYN_RECV);
+			tcp_hash(csk);
 			csk->iss = tcp_new_iss();
 			csk->snd_una = csk->iss;
 			csk->snd_nxt = csk->iss;
@@ -90,11 +91,10 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		break;
 	case TCP_SYN_RECV:
 		if(cb->flags & TCP_ACK){
-			tsk->rcv_nxt = cb->seq_end;
 			tsk->snd_una = cb->ack;
 			if(tcp_sock_accept_queue_full(tsk->parent)){
 				tcp_set_state(tsk, TCP_CLOSED);
-				tcp_send_control_packet(tsk, TCP_RST);
+				tcp_send_reset(cb);
 				list_delete_entry(&tsk->list);
 				free_tcp_sock(tsk);
 			}else{
@@ -105,21 +105,23 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		}
 		break;
 	case TCP_ESTABLISHED:
-		if(cb->flags & TCP_FIN){
+		if(cb->flags & (TCP_FIN|TCP_ACK)){
 			tsk->rcv_nxt = cb->seq_end;
+			tsk->snd_una = cb->ack;
 			tcp_set_state(tsk, TCP_CLOSE_WAIT);
 			tcp_send_control_packet(tsk, TCP_ACK);
 		}
 		break;
 	case TCP_FIN_WAIT_1:
-		tsk->rcv_nxt = cb->seq_end;
-		tsk->snd_una = cb->ack;
-		if(cb->flags & (TCP_ACK | TCP_FIN)){
+		if(cb->flags & TCP_ACK){
+			tsk->snd_una = cb->ack;
+			tcp_set_state(tsk, TCP_FIN_WAIT_2);
+		}
+		if(cb->flags & TCP_FIN){
+			tsk->rcv_nxt = cb->seq_end;
 			tcp_set_state(tsk, TCP_TIME_WAIT);
 			tcp_send_control_packet(tsk, TCP_ACK);
 			tcp_set_timewait_timer(tsk);
-		}else if(cb->flags & TCP_ACK){
-			tcp_set_state(tsk, TCP_FIN_WAIT_2);
 		}
 		break;
 	case TCP_FIN_WAIT_2:
@@ -132,7 +134,6 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		break;
 	case TCP_LAST_ACK:
 		if(cb->flags & TCP_ACK){
-			tsk->rcv_nxt = cb->seq_end;
 			tsk->snd_una = cb->ack;
 			tcp_set_state(tsk, TCP_CLOSED);
 			tcp_unhash(tsk);
