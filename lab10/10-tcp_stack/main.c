@@ -29,6 +29,7 @@ void handle_packet(iface_info_t *iface, char *packet, int len)
 		default:
 			log(ERROR, "Unknown packet type 0x%04hx, ingore it.", \
 					ntohs(eh->ether_type));
+			free(packet);
 			break;
 	}
 }
@@ -114,6 +115,8 @@ static void run_application(const char *basename, char **args, int n)
 
 int main(int argc, char **argv)
 {
+	setbuf(stdout,NULL);
+
 	if (getuid() && geteuid()) {
 		fprintf(stderr, "Permission denied, should be superuser!\n");
 		exit(1);

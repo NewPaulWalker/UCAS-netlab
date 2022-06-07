@@ -21,7 +21,7 @@ struct sock_addr {
 
 // the main structure that manages a connection locally
 struct tcp_sock {
-	// sk_ip, sk_sport, sk_sip, sk_dport are the 4-tuple that represents a 
+	// sk_sip, sk_sport, sk_dip, sk_dport are the 4-tuple that represents a 
 	// connection
 	struct sock_addr local;
 	struct sock_addr peer;

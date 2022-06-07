@@ -24,11 +24,21 @@
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 
+#define DYNAMIC_ROUTING
+
 typedef struct {
 	struct list_head iface_list;	// the list of interfaces
 	int nifs;						// number of interfaces
 	struct pollfd *fds;				// structure used to poll packets among 
 								    // all the interfaces
+#ifdef DYNAMIC_ROUTING
+	// used for mospf routing
+	// no use here, but to compatible with my libipstack.a
+	u32 area_id;	
+	u32 router_id;
+	u16 sequence_num;
+	int lsuint;
+#endif
 } ustack_t;
 
 extern ustack_t *instance;

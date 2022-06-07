@@ -33,6 +33,8 @@ void *tcp_server(void *arg)
 	sleep(5);
 
 	tcp_sock_close(csk);
+
+	log(DEBUG, "server finish.");
 	
 	return NULL;
 }
@@ -54,6 +56,8 @@ void *tcp_client(void *arg)
 	sleep(1);
 
 	tcp_sock_close(tsk);
+
+	log(DEBUG, "client finish.");
 
 	return NULL;
 }

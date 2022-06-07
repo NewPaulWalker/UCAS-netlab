@@ -82,6 +82,7 @@ void tcp_send_control_packet(struct tcp_sock *tsk, u8 flags)
 			tsk->rcv_nxt, flags, tsk->rcv_wnd);
 
 	tcp->checksum = tcp_checksum(ip, tcp);
+	ip->checksum = ip_checksum(ip);
 
 	if (flags & (TCP_SYN|TCP_FIN))
 		tsk->snd_nxt += 1;
@@ -109,6 +110,6 @@ void tcp_send_reset(struct tcp_cb *cb)
 	ip_init_hdr(ip, cb->daddr, cb->saddr, tot_len, IPPROTO_TCP);
 	tcp_init_hdr(tcp, cb->dport, cb->sport, 0, cb->seq_end, TCP_RST|TCP_ACK, 0);
 	tcp->checksum = tcp_checksum(ip, tcp);
-
+	ip->checksum = ip_checksum(ip);
 	ip_send_packet(packet, pkt_size);
 }
