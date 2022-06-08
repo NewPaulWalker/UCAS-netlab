@@ -30,7 +30,29 @@ void *tcp_server(void *arg)
 
 	log(DEBUG, "accept a connection.");
 
-	sleep(5);
+	char *prefix = "server echoes: ";
+	int len = strlen(prefix);
+	char recv[100] = {0};
+	char send[100] = {0};
+	while(1){
+		int rlen = tcp_sock_read(csk, recv, 100);
+		if(rlen==0){
+			log(DEBUG, "transmission finish.");
+			break;		
+		}else if(rlen > 0){
+			memcpy(send, prefix, len);
+			memcpy(send + len, recv, rlen);
+			log(DEBUG, "%s.",send);
+			int err = tcp_sock_write(csk, send, strlen(send));
+			if(err < 0){
+				log(DEBUG, "send failed.");
+				break;
+			}
+		}else{
+			log(DEBUG, "recv failed.");
+			break;
+		}
+	}
 
 	tcp_sock_close(csk);
 
@@ -53,7 +75,32 @@ void *tcp_client(void *arg)
 		exit(1);
 	}
 
-	sleep(1);
+	log(DEBUG, "connect success.");
+
+	char *data = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
+	int len = strlen(data);
+	char send[100] = {0};
+	char recv[100] = {0};
+	for(int i = 0;i<10;i++){
+		memcpy(send, data + i, len - i);
+		memcpy(send + len - i, data, i);
+		int err = tcp_sock_write(tsk, send, strlen(send));
+		if(err < 0){
+			log(DEBUG, "send failed.");
+			break;
+		}
+		int rlen = tcp_sock_read(tsk, recv, 100);
+		if(rlen==0){
+			log(DEBUG, "transmission finish.");
+			break;
+		}else if(rlen > 0){
+			log(DEBUG, "%s.", recv);
+		}else{
+			log(DEBUG, "recv failed.");
+			break;
+		}
+		sleep(1);
+	}
 
 	tcp_sock_close(tsk);
 
