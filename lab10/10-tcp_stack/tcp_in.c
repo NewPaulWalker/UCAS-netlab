@@ -49,6 +49,7 @@ int tcp_sock_recv(struct tcp_sock *tsk, struct tcp_cb *cb){
 	}
 	write_ring_buffer(tsk->rcv_buf, cb->payload, cb->pl_len);
 	tsk->rcv_wnd = ring_buffer_free(tsk->rcv_buf);
+	wake_up(tsk->wait_recv);
 	return cb->pl_len;
 }
 
@@ -62,7 +63,7 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		return ;
 	}
 
-	if(cb->flags & TCP_RST){
+	if(cb->flags == (TCP_RST | TCP_ACK)){
 		//rst
 		tcp_set_state(tsk, TCP_CLOSED);
 		tcp_unhash(tsk);
@@ -73,7 +74,7 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 	switch (tsk->state)
 	{
 	case TCP_LISTEN:
-		if(cb->flags & TCP_SYN){
+		if(cb->flags == TCP_SYN){
 			struct tcp_sock *csk = alloc_tcp_sock();
 			csk->sk_sip = cb->daddr;
 			csk->sk_dip = cb->saddr;
@@ -91,7 +92,7 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		}
 		break;
 	case TCP_SYN_SENT:
-		if(cb->flags & (TCP_SYN | TCP_ACK)){
+		if(cb->flags == (TCP_SYN | TCP_ACK)){
 			tsk->rcv_nxt = cb->seq_end;
 			tcp_update_window_safe(tsk, cb);
 			tsk->snd_una = cb->ack;
@@ -102,7 +103,7 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		}
 		break;
 	case TCP_SYN_RECV:
-		if(cb->flags & TCP_ACK){
+		if(cb->flags == TCP_ACK){
 			if(!is_tcp_seq_valid(tsk, cb)){
 				return ;
 			}
@@ -125,15 +126,15 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		if(!is_tcp_seq_valid(tsk, cb)){
 			return ;
 		}
-		if(cb->flags & (TCP_FIN|TCP_ACK)){
+		if(cb->flags == (TCP_FIN|TCP_ACK)){
 			tsk->rcv_nxt = cb->seq_end;
 			tcp_update_window_safe(tsk, cb);
 			tsk->snd_una = cb->ack;
 			tsk->adv_wnd = cb->rwnd;
 			tcp_set_state(tsk, TCP_CLOSE_WAIT);
+			wake_up(tsk->wait_recv);
 			tcp_send_control_packet(tsk, TCP_ACK);
-		}
-		if(cb->flags & (TCP_PSH|TCP_ACK)){
+		}else if(cb->flags == (TCP_PSH|TCP_ACK)){
 			if(tcp_sock_recv(tsk, cb)==0){
 				log(ERROR, "recv incorrect packet.");
 				return ;
@@ -143,7 +144,7 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 			tsk->snd_una = cb->ack;
 			tsk->adv_wnd = cb->rwnd;
 			tcp_send_control_packet(tsk, TCP_ACK);
-		}else if(cb->flags & TCP_ACK){
+		}else if(cb->flags == TCP_ACK){
 			tcp_update_window_safe(tsk, cb);
 			tsk->snd_una = cb->ack;
 			tsk->adv_wnd = cb->rwnd;
@@ -153,7 +154,7 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		if(!is_tcp_seq_valid(tsk, cb)){
 			return ;
 		}
-		if(cb->flags & (TCP_PSH|TCP_ACK)){
+		if(cb->flags == (TCP_PSH|TCP_ACK)){
 			if(tcp_sock_recv(tsk, cb)==0){
 				log(ERROR, "recv incorrect packet.");
 				return ;
@@ -180,7 +181,7 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		if(!is_tcp_seq_valid(tsk, cb)){
 			return ;
 		}
-		if(cb->flags & (TCP_PSH|TCP_ACK)){
+		if(cb->flags == (TCP_PSH|TCP_ACK)){
 			if(tcp_sock_recv(tsk, cb)==0){
 				log(ERROR, "recv incorrect packet.");
 				return ;
@@ -215,7 +216,7 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		if(!is_tcp_seq_valid(tsk, cb)){
 			return ;
 		}
-		if(cb->flags & TCP_ACK){
+		if(cb->flags == TCP_ACK){
 			tcp_update_window_safe(tsk, cb);
 			tsk->snd_una = cb->ack;
 			tsk->adv_wnd = cb->rwnd;

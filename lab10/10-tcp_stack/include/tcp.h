@@ -26,12 +26,12 @@ struct tcphdr {
 	u8 x2:4;			// (unused)
 # endif
 	u8 flags;
-# define TCP_FIN	0x01
-# define TCP_SYN	0x02
-# define TCP_RST	0x04
-# define TCP_PSH	0x08
-# define TCP_ACK	0x10
-# define TCP_URG	0x20
+# define TCP_FIN	0x01 //000001 1
+# define TCP_SYN	0x02 //000010 2
+# define TCP_RST	0x04 //000100 4
+# define TCP_PSH	0x08 //001000 8
+# define TCP_ACK	0x10 //010000 16
+# define TCP_URG	0x20 //100000 32	one-hot code
 	u16 rwnd;			// receiving window
 	u16 checksum;		// checksum
 	u16 urp;			// urgent pointer
