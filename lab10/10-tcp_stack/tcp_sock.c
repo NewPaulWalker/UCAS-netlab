@@ -410,7 +410,7 @@ int tcp_sock_read(struct tcp_sock *tsk, char *buf, int len){
 			sleep_on(tsk->wait_recv);
 		}
 	}
-	int rlen = min(ring_buffer_free(tsk->rcv_buf), len);
+	int rlen = min(ring_buffer_used(tsk->rcv_buf), len);
 	read_ring_buffer(tsk->rcv_buf, buf, rlen);
 	tsk->rcv_wnd = ring_buffer_free(tsk->rcv_buf);
 	return rlen;
