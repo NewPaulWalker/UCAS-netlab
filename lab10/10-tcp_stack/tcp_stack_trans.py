@@ -1,11 +1,11 @@
 #!/usr/bin/python2
 
+import os
 import sys
 import string
 import socket
+import struct
 from time import sleep
-
-data = string.digits + string.lowercase + string.uppercase
 
 def server(port):
     s = socket.socket()
@@ -16,16 +16,17 @@ def server(port):
     
     cs, addr = s.accept()
     print addr
-    
-    while True:
-        data = cs.recv(1000)
-        print(type(data))
-        if data:
-            data = 'server echoes: ' + data
-            cs.send(data)
-        else:
-            break
-    
+
+    filename = 'server-output.dat
+
+    with open(filename, 'wb') as f:
+        while True:
+            data = cs.recv(1024)
+            if data:
+                f.write(data)
+            else:
+                break    
+
     s.close()
 
 
@@ -33,12 +34,19 @@ def client(ip, port):
     s = socket.socket()
     s.connect((ip, int(port)))
     
-    for i in range(10):
-        new_data = data[i:] + data[:i+1]
-        s.send(new_data)
-        print s.recv(1000)
-        sleep(1)
-    
+    filename = 'client-input.dat'
+    file_size = os.path.getsize(filename)
+    send_size = 0
+    with open(filename, 'rb') as f:
+        while True:
+            data = f.read(1024)
+            if data:
+                send_size += sys.getsizeof(data)
+                s.send(data)
+                print 'send %d Bytes' % (send_size)
+            else:
+                break
+            
     s.close()
 
 if __name__ == '__main__':

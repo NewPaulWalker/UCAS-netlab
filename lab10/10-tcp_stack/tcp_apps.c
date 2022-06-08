@@ -30,29 +30,24 @@ void *tcp_server(void *arg)
 
 	log(DEBUG, "accept a connection.");
 
-	char *prefix = "server echoes: ";
-	int len = strlen(prefix);
-	char recv[100] = {0};
-	char send[100] = {0};
+	FILE *fd = fopen("server-outut.dat", "wb");
+	if(fd==NULL){
+		log(ERROR, "open file failed.");
+	}
+
+	char buf[1024];
+	int len = 0;
 	while(1){
-		int rlen = tcp_sock_read(csk, recv, 100);
-		if(rlen==0){
-			log(DEBUG, "transmission finish.");
-			break;		
-		}else if(rlen > 0){
-			memcpy(send, prefix, len);
-			memcpy(send + len, recv, rlen);
-			log(DEBUG, "%s.",send);
-			int err = tcp_sock_write(csk, send, strlen(send));
-			if(err < 0){
-				log(DEBUG, "send failed.");
-				break;
-			}
+		len = tcp_sock_read(csk, buf, 1000);
+		if(len){
+			fwrite(buf, 1, len, fd);
 		}else{
-			log(DEBUG, "recv failed.");
+			log(DEBUG, "write done.");
 			break;
 		}
 	}
+
+	fclose(fd);
 
 	tcp_sock_close(csk);
 
@@ -77,30 +72,27 @@ void *tcp_client(void *arg)
 
 	log(DEBUG, "connect success.");
 
-	char *data = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	int len = strlen(data);
-	char send[100] = {0};
-	char recv[100] = {0};
-	for(int i = 0;i<10;i++){
-		memcpy(send, data + i, len - i);
-		memcpy(send + len - i, data, i);
-		int err = tcp_sock_write(tsk, send, strlen(send));
-		if(err < 0){
-			log(DEBUG, "send failed.");
-			break;
-		}
-		int rlen = tcp_sock_read(tsk, recv, 100);
-		if(rlen==0){
-			log(DEBUG, "transmission finish.");
-			break;
-		}else if(rlen > 0){
-			log(DEBUG, "%s.", recv);
-		}else{
-			log(DEBUG, "recv failed.");
-			break;
-		}
-		sleep(1);
+	FILE *fd = fopen("client-input.dat", "rb");
+	if(fd==NULL){
+		log(ERROR, "open file failed.");
 	}
+
+	char buf[1024] = {0};
+	int len = 0;
+	int send = 0;
+	while(1){
+		len = fread(buf, 1, 1000, fd);
+		if(len){
+			send += len;
+			tcp_sock_write(tsk, buf, len);
+			log(DEBUG, "send %d Bytes.",send);
+		}else{
+			log(DEBUG, "file end.");
+			break;
+		}
+	}
+
+	fclose(fd);
 
 	tcp_sock_close(tsk);
 
