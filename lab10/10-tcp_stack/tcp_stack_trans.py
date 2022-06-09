@@ -17,13 +17,16 @@ def server(port):
     cs, addr = s.accept()
     print addr
 
-    filename = 'server-output.dat
+    filename = 'server-output.dat'
+    recv_size = 0
 
     with open(filename, 'wb') as f:
         while True:
-            data = cs.recv(1024)
+            data = cs.recv(1000)
             if data:
+                recv_size += sys.getsizeof(data)
                 f.write(data)
+                print 'recv %d Bytes' % (recv_size) 
             else:
                 break    
 
@@ -35,11 +38,11 @@ def client(ip, port):
     s.connect((ip, int(port)))
     
     filename = 'client-input.dat'
-    file_size = os.path.getsize(filename)
     send_size = 0
+    
     with open(filename, 'rb') as f:
         while True:
-            data = f.read(1024)
+            data = f.read(1000)
             if data:
                 send_size += sys.getsizeof(data)
                 s.send(data)

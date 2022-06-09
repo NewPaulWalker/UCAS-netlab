@@ -30,7 +30,7 @@ void *tcp_server(void *arg)
 
 	log(DEBUG, "accept a connection.");
 
-	FILE *fd = fopen("server-outut.dat", "wb");
+	FILE *fd = fopen("server-output.dat", "wb");
 	if(fd==NULL){
 		log(ERROR, "open file failed.");
 	}
