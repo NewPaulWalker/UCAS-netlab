@@ -410,9 +410,9 @@ int tcp_sock_read(struct tcp_sock *tsk, char *buf, int len){
 			sleep_on(tsk->wait_recv);
 		}
 	}
-	int rlen = min(ring_buffer_used(tsk->rcv_buf), len);
-	read_ring_buffer(tsk->rcv_buf, buf, rlen);
+	int rlen = read_ring_buffer(tsk->rcv_buf, buf, len);
 	tsk->rcv_wnd = ring_buffer_free(tsk->rcv_buf);
+	wake_up(tsk->wait_recv);
 	return rlen;
 }
 int tcp_sock_write(struct tcp_sock *tsk, char *buf, int len){
@@ -422,13 +422,13 @@ int tcp_sock_write(struct tcp_sock *tsk, char *buf, int len){
 		int wlen = min(rest, ETH_FRAME_LEN - ETHER_HDR_SIZE - IP_BASE_HDR_SIZE - TCP_BASE_HDR_SIZE);
 		char *packet = (char*)malloc(wlen + ETHER_HDR_SIZE+ IP_BASE_HDR_SIZE + TCP_BASE_HDR_SIZE);
 		memcpy(packet + ETHER_HDR_SIZE + IP_BASE_HDR_SIZE + TCP_BASE_HDR_SIZE, read, wlen);
-		while(tsk->snd_wnd < wlen){
+		while(tsk->snd_nxt + wlen - tsk->snd_una >= tsk->snd_wnd){
 			tsk->snd_wnd = 0;
 			sleep_on(tsk->wait_send);
 		}
 		tcp_send_packet(tsk, packet, wlen + ETHER_HDR_SIZE + IP_BASE_HDR_SIZE + TCP_BASE_HDR_SIZE);
 		rest -= wlen;
-		read +=wlen;
+		read += wlen;
 	}
 	return len;
 }

@@ -37,10 +37,13 @@ void *tcp_server(void *arg)
 
 	char buf[1024];
 	int len = 0;
+	int recv = 0;
 	while(1){
 		len = tcp_sock_read(csk, buf, 1000);
 		if(len){
 			fwrite(buf, 1, len, fd);
+			recv += len;
+			log(DEBUG, "recv %d Bytes.",recv);
 		}else{
 			log(DEBUG, "write done.");
 			break;
@@ -90,7 +93,6 @@ void *tcp_client(void *arg)
 			log(DEBUG, "file end.");
 			break;
 		}
-		usleep(100000);
 	}
 
 	fclose(fd);

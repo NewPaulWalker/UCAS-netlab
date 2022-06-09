@@ -47,6 +47,10 @@ int tcp_sock_recv(struct tcp_sock *tsk, struct tcp_cb *cb){
 	if(cb->pl_len == 0){
 		return 0;
 	}
+	while(ring_buffer_free(tsk->rcv_buf) < cb->pl_len){
+		wake_up(tsk->wait_recv);
+		sleep_on(tsk->wait_recv);
+	}
 	write_ring_buffer(tsk->rcv_buf, cb->payload, cb->pl_len);
 	tsk->rcv_wnd = ring_buffer_free(tsk->rcv_buf);
 	wake_up(tsk->wait_recv);
