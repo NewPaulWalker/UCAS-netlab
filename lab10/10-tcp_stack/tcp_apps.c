@@ -90,6 +90,7 @@ void *tcp_client(void *arg)
 			log(DEBUG, "file end.");
 			break;
 		}
+		usleep(100000);
 	}
 
 	fclose(fd);
