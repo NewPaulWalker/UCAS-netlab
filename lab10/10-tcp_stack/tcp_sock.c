@@ -55,6 +55,7 @@ struct tcp_sock *alloc_tcp_sock()
 
 	tsk->state = TCP_CLOSED;
 	tsk->rcv_wnd = TCP_DEFAULT_WINDOW;
+	pthread_mutex_init(&tsk->snd_wnd_lock,NULL);
 
 	init_list_head(&tsk->list);
 	init_list_head(&tsk->listen_queue);
@@ -422,10 +423,15 @@ int tcp_sock_write(struct tcp_sock *tsk, char *buf, int len){
 		int wlen = min(rest, ETH_FRAME_LEN - ETHER_HDR_SIZE - IP_BASE_HDR_SIZE - TCP_BASE_HDR_SIZE);
 		char *packet = (char*)malloc(wlen + ETHER_HDR_SIZE+ IP_BASE_HDR_SIZE + TCP_BASE_HDR_SIZE);
 		memcpy(packet + ETHER_HDR_SIZE + IP_BASE_HDR_SIZE + TCP_BASE_HDR_SIZE, read, wlen);
-		while(tsk->snd_nxt + wlen - tsk->snd_una >= tsk->snd_wnd){
+		pthread_mutex_lock(&tsk->snd_wnd_lock);
+		while(tsk->snd_wnd < wlen){
 			tsk->snd_wnd = 0;
+			pthread_mutex_unlock(&tsk->snd_wnd_lock);
 			sleep_on(tsk->wait_send);
+			pthread_mutex_lock(&tsk->snd_wnd_lock);
 		}
+		tsk->snd_wnd -= wlen;
+		pthread_mutex_unlock(&tsk->snd_wnd_lock);
 		tcp_send_packet(tsk, packet, wlen + ETHER_HDR_SIZE + IP_BASE_HDR_SIZE + TCP_BASE_HDR_SIZE);
 		rest -= wlen;
 		read += wlen;

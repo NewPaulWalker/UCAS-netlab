@@ -11,10 +11,21 @@
 // if the snd_wnd before updating is zero, notify tcp_sock_send (wait_send)
 static inline void tcp_update_window(struct tcp_sock *tsk, struct tcp_cb *cb)
 {
+	if(tsk->state == TCP_SYN_RECV || tsk->state == TCP_SYN_SENT){
+		tsk->snd_wnd = cb->rwnd;
+		tsk->snd_una = cb->ack;
+		tsk->adv_wnd = cb->rwnd;
+		return ;
+	}
 	u16 old_snd_wnd = tsk->snd_wnd;
-	tsk->snd_wnd = cb->rwnd;
-	if (old_snd_wnd == 0)
+	pthread_mutex_lock(&tsk->snd_wnd_lock);
+	tsk->snd_wnd += (cb->ack - tsk->snd_una);
+	pthread_mutex_unlock(&tsk->snd_wnd_lock);
+	tsk->snd_una = cb->ack;
+	tsk->adv_wnd = cb->rwnd;
+	if (old_snd_wnd == 0){
 		wake_up(tsk->wait_send);
+	}
 }
 
 // update the snd_wnd safely: cb->ack should be between snd_una and snd_nxt
@@ -99,8 +110,6 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		if(cb->flags == (TCP_SYN | TCP_ACK)){
 			tsk->rcv_nxt = cb->seq_end;
 			tcp_update_window_safe(tsk, cb);
-			tsk->snd_una = cb->ack;
-			tsk->adv_wnd = cb->rwnd;
 			tcp_set_state(tsk, TCP_ESTABLISHED);
 			tcp_send_control_packet(tsk, TCP_ACK);
 			wake_up(tsk->wait_connect);
@@ -112,8 +121,6 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 				return ;
 			}
 			tcp_update_window_safe(tsk, cb);
-			tsk->snd_una = cb->ack;
-			tsk->adv_wnd = cb->rwnd;
 			if(tcp_sock_accept_queue_full(tsk->parent)){
 				tcp_set_state(tsk, TCP_CLOSED);
 				tcp_send_reset(cb);
@@ -136,8 +143,6 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 				tsk->rcv_nxt = cb->seq_end;
 			}
 			tcp_update_window_safe(tsk, cb);
-			tsk->snd_una = cb->ack;
-			tsk->adv_wnd = cb->rwnd;
 			if(cb->flags & TCP_FIN){
 				tcp_set_state(tsk, TCP_CLOSE_WAIT);
 				wake_up(tsk->wait_recv);
@@ -157,8 +162,6 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 				tsk->rcv_nxt = cb->seq_end;
 			}
 			tcp_update_window_safe(tsk, cb);
-			tsk->snd_una = cb->ack;
-			tsk->adv_wnd = cb->rwnd;
 			tcp_set_state(tsk, TCP_FIN_WAIT_2);
 			if(rlen!=0){
 				tcp_send_control_packet(tsk, TCP_ACK);
@@ -181,8 +184,6 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 				tsk->rcv_nxt = cb->seq_end;
 			}
 			tcp_update_window_safe(tsk, cb);
-			tsk->snd_una = cb->ack;
-			tsk->adv_wnd = cb->rwnd;
 			if(rlen!=0){
 				tcp_send_control_packet(tsk, TCP_ACK);
 			}
@@ -200,8 +201,6 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		}
 		if(cb->flags & TCP_ACK){
 			tcp_update_window_safe(tsk, cb);
-			tsk->snd_una = cb->ack;
-			tsk->adv_wnd = cb->rwnd;
 			tcp_set_state(tsk, TCP_CLOSED);
 			tcp_unhash(tsk);
 			tcp_bind_unhash(tsk);
@@ -213,8 +212,6 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		}
 		if(cb->flags & TCP_ACK){
 			tcp_update_window_safe(tsk, cb);
-			tsk->snd_una = cb->ack;
-			tsk->adv_wnd = cb->rwnd;
 		}
 		break;
 	default:
