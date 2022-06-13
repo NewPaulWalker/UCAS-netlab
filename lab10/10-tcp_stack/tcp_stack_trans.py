@@ -44,8 +44,7 @@ def client(ip, port):
         while True:
             data = f.read(1000)
             if data:
-                send_size += sys.getsizeof(data)
-                s.send(data)
+                send_size += s.send(data)
                 print 'send %d Bytes' % (send_size)
             else:
                 break
