@@ -83,10 +83,10 @@ void tcp_set_retrans_timer(struct tcp_sock *tsk){
 
 void tcp_unset_retrans_timer(struct tcp_sock *tsk){
 	tsk->retrans_timer.enable = 0;
-	pthread_mutex_lock(&tsk->retrans_timer.list, &timer_list);
+	pthread_mutex_lock(&tcp_timer_lock);
 	list_delete_entry(&tsk->retrans_timer.list);
 	free_tcp_sock(tsk);
-	pthread_mutex_unlock(&tsk->retrans_timer.list, &timer_list);
+	pthread_mutex_unlock(&tcp_timer_lock);
 }
 
 // set the timewait timer of a tcp sock, by adding the timer into timer_list

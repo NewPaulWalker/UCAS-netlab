@@ -57,10 +57,10 @@ void tcp_send_packet(struct tcp_sock *tsk, char *packet, int len)
 
 	struct send_packet *send = (struct send_packet*)malloc(sizeof(struct send_packet));
 	list_add_tail(&send->list, &tsk->send_buf);
-	send->len = pkt_size;
+	send->len = len;
 	send->seq_end = tsk->snd_nxt;
-	char *sendpacket = (char*)malloc(pkt_size);
-	memcpy(sendpacket, packet, pkt_size);
+	char *sendpacket = (char*)malloc(len);
+	memcpy(sendpacket, packet, len);
 	send->packet = sendpacket;
 	ip_send_packet(packet, len);
 }

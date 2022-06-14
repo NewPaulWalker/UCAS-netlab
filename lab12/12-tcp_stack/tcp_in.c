@@ -73,7 +73,7 @@ void tcp_ack_send_buf(struct tcp_sock *tsk, struct tcp_cb *cb){
 	struct send_packet *send, *q;
 	int changed = 0;
 	list_for_each_entry_safe(send, q, &tsk->send_buf, list){
-		if(cb->seq_end >= send->seq_end){
+		if(cb->ack >= send->seq_end){
 			free(send->packet);
 			list_delete_entry(&send->list);
 			free(send);
@@ -81,9 +81,9 @@ void tcp_ack_send_buf(struct tcp_sock *tsk, struct tcp_cb *cb){
 		}
 	}
 	if(list_empty(&tsk->send_buf)){
-		tcp_unset_retrans_timer(&tsk->retrans_timer);
+		tcp_unset_retrans_timer(tsk);
 	}else if(changed){
-		tcp_set_retrans_timer(&tsk->retrans_timer);
+		tcp_set_retrans_timer(tsk);
 	}
 }
 
