@@ -19,7 +19,7 @@ def server(port):
 
     filename = 'server-output.dat'
     recv_size = 0
-
+'''
     with open(filename, 'wb') as f:
         while True:
             data = cs.recv(1000)
@@ -29,7 +29,7 @@ def server(port):
                 print 'recv %d Bytes' % (recv_size) 
             else:
                 break    
-
+'''
     s.close()
 
 
@@ -39,7 +39,7 @@ def client(ip, port):
     
     filename = 'client-input.dat'
     send_size = 0
-    
+'''
     with open(filename, 'rb') as f:
         while True:
             data = f.read(1000)
@@ -48,7 +48,7 @@ def client(ip, port):
                 print 'send %d Bytes' % (send_size)
             else:
                 break
-            
+'''         
     s.close()
 
 if __name__ == '__main__':

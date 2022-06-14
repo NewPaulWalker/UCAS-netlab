@@ -115,6 +115,13 @@ struct tcp_sock {
 
 typedef struct tcp_sock tcp_sock_t;
 
+struct send_packet {
+	struct list_head list;
+	char *packet;
+	int len;
+	u32 seq_end;
+};
+
 void tcp_set_state(struct tcp_sock *tsk, int state);
 
 int tcp_sock_accept_queue_full(struct tcp_sock *tsk);

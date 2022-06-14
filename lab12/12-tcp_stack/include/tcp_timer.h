@@ -18,7 +18,7 @@ struct tcp_sock;
 
 #define retranstimer_to_tcp_sock(t) \
 	(struct tcp_sock *)((char *)(t) - offsetof(struct tcp_sock, retrans_timer))
-#define TCP_TIMER_SCAN_INTERVAL 100000
+#define TCP_TIMER_SCAN_INTERVAL 10000
 #define TCP_MSL			1000000
 #define TCP_TIMEWAIT_TIMEOUT	(2 * TCP_MSL)
 #define TCP_RETRANS_INTERVAL_INITIAL 200000

@@ -68,6 +68,25 @@ int tcp_sock_recv(struct tcp_sock *tsk, struct tcp_cb *cb){
 	return cb->pl_len;
 }
 
+// ack send buf
+void tcp_ack_send_buf(struct tcp_sock *tsk, struct tcp_cb *cb){
+	struct send_packet *send, *q;
+	int changed = 0;
+	list_for_each_entry_safe(send, q, &tsk->send_buf, list){
+		if(cb->seq_end >= send->seq_end){
+			free(send->packet);
+			list_delete_entry(&send->list);
+			free(send);
+			changed = 1;
+		}
+	}
+	if(list_empty(&tsk->send_buf)){
+		tcp_unset_retrans_timer(&tsk->retrans_timer);
+	}else if(changed){
+		tcp_set_retrans_timer(&tsk->retrans_timer);
+	}
+}
+
 // Process the incoming packet according to TCP state machine. 
 void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 {
@@ -104,6 +123,7 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 			csk->snd_nxt = csk->iss;
 			csk->rcv_nxt = cb->seq_end;
 			tcp_send_control_packet(csk, TCP_SYN|TCP_ACK);
+			tcp_set_retrans_timer(csk);
 		}
 		break;
 	case TCP_SYN_SENT:
@@ -111,6 +131,7 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 			tsk->rcv_nxt = cb->seq_end;
 			tcp_update_window_safe(tsk, cb);
 			tcp_set_state(tsk, TCP_ESTABLISHED);
+			tcp_ack_send_buf(tsk, cb);
 			tcp_send_control_packet(tsk, TCP_ACK);
 			wake_up(tsk->wait_connect);
 		}
@@ -121,6 +142,7 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 				return ;
 			}
 			tcp_update_window_safe(tsk, cb);
+			tcp_ack_send_buf(tsk, cb);
 			if(tcp_sock_accept_queue_full(tsk->parent)){
 				tcp_set_state(tsk, TCP_CLOSED);
 				tcp_send_reset(cb);
@@ -135,6 +157,10 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		break;
 	case TCP_ESTABLISHED:
 		if(!is_tcp_seq_valid(tsk, cb)){
+			return ;
+		}
+		if(cb->flags == (TCP_SYN | TCP_ACK)){
+			tcp_send_control_packet(tsk, TCP_ACK);
 			return ;
 		}
 		if(cb->flags & TCP_ACK){
@@ -162,6 +188,7 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 				tsk->rcv_nxt = cb->seq_end;
 			}
 			tcp_update_window_safe(tsk, cb);
+			tcp_ack_send_buf(tsk, cb);
 			tcp_set_state(tsk, TCP_FIN_WAIT_2);
 			if(rlen!=0){
 				tcp_send_control_packet(tsk, TCP_ACK);
@@ -201,6 +228,7 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		}
 		if(cb->flags & TCP_ACK){
 			tcp_update_window_safe(tsk, cb);
+			tcp_ack_send_buf(tsk, cb);
 			tcp_set_state(tsk, TCP_CLOSED);
 			tcp_unhash(tsk);
 			tcp_bind_unhash(tsk);
@@ -210,10 +238,20 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		if(!is_tcp_seq_valid(tsk, cb)){
 			return ;
 		}
+		if(cb->flags & TCP_FIN){
+			tcp_send_control_packet(tsk, TCP_ACK);
+		}
 		if(cb->flags & TCP_ACK){
 			tcp_update_window_safe(tsk, cb);
 		}
 		break;
+	case TCP_TIME_WAIT:
+		if(!is_tcp_seq_valid(tsk, cb)){
+			return ;
+		}
+		if(cb->flags & TCP_FIN){
+			tcp_send_control_packet(tsk, TCP_ACK);
+		}
 	default:
 		break;
 	}

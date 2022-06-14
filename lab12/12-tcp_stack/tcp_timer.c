@@ -1,7 +1,7 @@
 #include "tcp.h"
 #include "tcp_timer.h"
 #include "tcp_sock.h"
-
+#include "log.h"
 #include <stdio.h>
 #include <unistd.h>
 
@@ -31,11 +31,62 @@ void tcp_scan_timer_list()
 					free_tcp_sock(tsk);
 				}else{
 					//type: retrans
+
+					struct tcp_sock *tsk = retranstimer_to_tcp_sock(entry);
+					if(entry->type < 4){
+						if(list_empty(&tsk->send_buf)){
+							//rst
+							log(DEBUG, "nothing to retran");
+							tcp_set_state(tsk, TCP_CLOSED);
+							tcp_unhash(tsk);
+							tcp_bind_unhash(tsk);
+							list_delete_entry(&entry->list);
+							free_tcp_sock(tsk);
+						}else{
+							//retrans
+							struct send_packet *resend = list_entry(tsk->send_buf.next, struct send_packet, list);
+							char *packet = (char *)malloc(resend->len);
+							memcpy(packet, resend->packet, resend->len);
+							ip_send_packet(packet, resend->len);
+							//double time
+							entry->type ++;
+							entry->timeout = TCP_RETRANS_INTERVAL_INITIAL << (entry->type - 1);
+						}
+					}else{
+						//rst
+						tcp_set_state(tsk, TCP_CLOSED);
+						tcp_unhash(tsk);
+						tcp_bind_unhash(tsk);
+						list_delete_entry(&entry->list);
+						free_tcp_sock(tsk);
+					}
 				}
 			}
 		}
 	}
 	pthread_mutex_unlock(&tcp_timer_lock);
+}
+
+void tcp_set_retrans_timer(struct tcp_sock *tsk){
+	pthread_mutex_lock(&tcp_timer_lock);
+	if(tsk->retrans_timer.enable==0){
+		tsk->retrans_timer.type = 1;
+		tsk->retrans_timer.timeout = TCP_RETRANS_INTERVAL_INITIAL;
+		tsk->retrans_timer.enable = 1;
+		tsk->ref_cnt ++;
+		list_add_tail(&tsk->retrans_timer.list, &timer_list);
+	}else{
+		tsk->retrans_timer.timeout = TCP_RETRANS_INTERVAL_INITIAL;
+	}
+	pthread_mutex_unlock(&tcp_timer_lock);	
+}
+
+void tcp_unset_retrans_timer(struct tcp_sock *tsk){
+	tsk->retrans_timer.enable = 0;
+	pthread_mutex_lock(&tsk->retrans_timer.list, &timer_list);
+	list_delete_entry(&tsk->retrans_timer.list);
+	free_tcp_sock(tsk);
+	pthread_mutex_unlock(&tsk->retrans_timer.list, &timer_list);
 }
 
 // set the timewait timer of a tcp sock, by adding the timer into timer_list

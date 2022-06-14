@@ -55,6 +55,13 @@ void tcp_send_packet(struct tcp_sock *tsk, char *packet, int len)
 
 	tsk->snd_nxt += tcp_data_len;
 
+	struct send_packet *send = (struct send_packet*)malloc(sizeof(struct send_packet));
+	list_add_tail(&send->list, &tsk->send_buf);
+	send->len = pkt_size;
+	send->seq_end = tsk->snd_nxt;
+	char *sendpacket = (char*)malloc(pkt_size);
+	memcpy(sendpacket, packet, pkt_size);
+	send->packet = sendpacket;
 	ip_send_packet(packet, len);
 }
 
@@ -86,6 +93,16 @@ void tcp_send_control_packet(struct tcp_sock *tsk, u8 flags)
 
 	if (flags & (TCP_SYN|TCP_FIN))
 		tsk->snd_nxt += 1;
+
+	if(flags & (TCP_SYN|TCP_FIN)){
+		struct send_packet *send = (struct send_packet*)malloc(sizeof(struct send_packet));
+		list_add_tail(&send->list, &tsk->send_buf);
+		send->len = pkt_size;
+		send->seq_end = tsk->snd_nxt;
+		char *sendpacket = (char*)malloc(pkt_size);
+		memcpy(sendpacket, packet, pkt_size);
+		send->packet = sendpacket;
+	}
 
 	ip_send_packet(packet, pkt_size);
 }
