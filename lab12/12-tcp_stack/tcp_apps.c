@@ -38,7 +38,7 @@ void *tcp_server(void *arg)
 	char buf[1024];
 	int len = 0;
 	int recv = 0;
-	/*
+	
 	while(1){
 		len = tcp_sock_read(csk, buf, 1000);
 		if(len){
@@ -50,9 +50,8 @@ void *tcp_server(void *arg)
 			break;
 		}
 	}
-*/
+
 	fclose(fd);
-	sleep(5);
 	tcp_sock_close(csk);
 
 	log(DEBUG, "server finish.");
@@ -84,7 +83,7 @@ void *tcp_client(void *arg)
 	char buf[1024] = {0};
 	int len = 0;
 	int send = 0;
-	/*
+	
 	while(1){
 		len = fread(buf, 1, 1000, fd);
 		if(len){
@@ -96,9 +95,8 @@ void *tcp_client(void *arg)
 			break;
 		}
 	}
-*/
+
 	fclose(fd);
-	sleep(1);
 	tcp_sock_close(tsk);
 
 	log(DEBUG, "client finish.");

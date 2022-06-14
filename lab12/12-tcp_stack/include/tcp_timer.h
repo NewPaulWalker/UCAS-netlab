@@ -28,7 +28,7 @@ void *tcp_timer_thread(void *arg);
 // add the timer of tcp sock to timer_list
 void tcp_set_timewait_timer(struct tcp_sock *);
 
-void tcp_set_retrans_timer(struct tcp_sock *tsk);
+void tcp_set_retrans_timer(struct tcp_sock *tsk, int mode);
 
 void tcp_unset_retrans_timer(struct tcp_sock *tsk);
 

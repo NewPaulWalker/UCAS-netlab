@@ -63,6 +63,7 @@ struct tcp_sock *alloc_tcp_sock()
 
 	tsk->rcv_buf = alloc_ring_buffer(tsk->rcv_wnd);
 	init_list_head(&tsk->send_buf);
+	init_list_head(&tsk->rcv_ofo_buf);
 
 	tsk->wait_connect = alloc_wait_struct();
 	tsk->wait_accept = alloc_wait_struct();
@@ -323,7 +324,7 @@ int tcp_sock_connect(struct tcp_sock *tsk, struct sock_addr *skaddr)
 	tsk->snd_una = tsk->iss;
 	tsk->snd_nxt = tsk->iss;
 	tcp_send_control_packet(tsk, TCP_SYN);
-	tcp_set_retrans_timer(tsk);
+	tcp_set_retrans_timer(tsk, 1);
 	err = sleep_on(tsk->wait_connect);
 	if(err){
 		log(ERROR, "sleep failed.");
@@ -401,12 +402,12 @@ void tcp_sock_close(struct tcp_sock *tsk)
 	case TCP_ESTABLISHED:
 		tcp_set_state(tsk, TCP_FIN_WAIT_1);
 		tcp_send_control_packet(tsk, TCP_FIN|TCP_ACK);
-		tcp_set_retrans_timer(tsk);
+		tcp_set_retrans_timer(tsk, 1);
 		break;
 	case TCP_CLOSE_WAIT:
 		tcp_set_state(tsk, TCP_LAST_ACK);
 		tcp_send_control_packet(tsk, TCP_FIN|TCP_ACK); 
-		tcp_set_retrans_timer(tsk); 
+		tcp_set_retrans_timer(tsk, 1); 
 		break;
 	default:
 		break;
@@ -443,6 +444,7 @@ int tcp_sock_write(struct tcp_sock *tsk, char *buf, int len){
 		tsk->snd_wnd -= wlen;
 		pthread_mutex_unlock(&tsk->snd_wnd_lock);
 		tcp_send_packet(tsk, packet, wlen + ETHER_HDR_SIZE + IP_BASE_HDR_SIZE + TCP_BASE_HDR_SIZE);
+		tcp_set_retrans_timer(tsk, 1);
 		rest -= wlen;
 		read += wlen;
 	}
