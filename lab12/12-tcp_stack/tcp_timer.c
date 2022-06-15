@@ -24,16 +24,20 @@ void tcp_scan_timer_list()
 					//state:	TIME_WAIT  ->  CLOSED
 
 					struct tcp_sock *tsk = timewait_to_tcp_sock(entry);
-					tcp_set_state(tsk, TCP_CLOSED);
-					tcp_unhash(tsk);
-					tcp_bind_unhash(tsk);
-					list_delete_entry(&entry->list);
-					free_tcp_sock(tsk);
+					if(list_empty(&tsk->send_buf)){
+						tcp_set_state(tsk, TCP_CLOSED);
+						tcp_unhash(tsk);
+						tcp_bind_unhash(tsk);
+						list_delete_entry(&entry->list);
+						free_tcp_sock(tsk);
+					}else{
+						entry->timeout = TCP_TIMEWAIT_TIMEOUT;
+					}
 				}else{
 					//type: retrans
 
 					struct tcp_sock *tsk = retranstimer_to_tcp_sock(entry);
-					if(entry->type < 4){
+					if(entry->type < 9){
 						if(list_empty(&tsk->send_buf)){
 							//rst
 							log(DEBUG, "nothing to retran");
@@ -54,6 +58,7 @@ void tcp_scan_timer_list()
 						}
 					}else{
 						//rst
+						log(DEBUG, "too many retrans.");
 						tcp_set_state(tsk, TCP_CLOSED);
 						tcp_unhash(tsk);
 						tcp_bind_unhash(tsk);

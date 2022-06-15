@@ -58,7 +58,15 @@ static inline int is_tcp_seq_valid(struct tcp_sock *tsk, struct tcp_cb *cb)
 int tcp_sock_recv(struct tcp_sock *tsk, struct tcp_cb *cb){
 	//judge if have recvd
 	if(cb->seq_end <= tsk->rcv_nxt){
+		tcp_send_control_packet(tsk, TCP_ACK);
 		return -1;
+	}
+	struct recv_packet *recvd;
+	list_for_each_entry(recvd, &tsk->rcv_ofo_buf, list){
+		if(recvd->seq == cb->seq){
+			tcp_send_control_packet(tsk, TCP_ACK);
+			return -1;
+		}
 	}
 	if(cb->pl_len == 0 && !(cb->flags & TCP_FIN)){
 		return 0;
@@ -76,6 +84,7 @@ int tcp_sock_recv(struct tcp_sock *tsk, struct tcp_cb *cb){
 	pend->len = cb->pl_len;
 	pend->seq = cb->seq;
 	pend->seq_end = cb->seq_end;
+	pend->flags = cb->flags;
 	struct recv_packet *entry, *q;
 	list_for_each_entry_safe(entry, q, &tsk->rcv_ofo_buf, list){
 		if(entry->seq > pend->seq){
@@ -101,6 +110,22 @@ int tcp_sock_recv(struct tcp_sock *tsk, struct tcp_cb *cb){
 			}
 			write_ring_buffer(tsk->rcv_buf, pend->packet, pend->len);
 			free(pend->packet);
+		}
+		if(pend->flags & TCP_FIN){
+			switch (tsk->state)
+			{
+			case TCP_ESTABLISHED:
+				tcp_set_state(tsk, TCP_CLOSE_WAIT);
+				wake_up(tsk->wait_recv);
+				break;
+			case TCP_FIN_WAIT_1:
+			case TCP_FIN_WAIT_2:
+				tcp_set_state(tsk, TCP_TIME_WAIT);
+				tcp_set_timewait_timer(tsk);
+			default:
+				break;
+			}
+
 		}
 
 		tsk->rcv_nxt = pend->seq_end;
@@ -149,6 +174,7 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 	if(cb->flags == (TCP_RST | TCP_ACK)){
 		//rst
 		tcp_set_state(tsk, TCP_CLOSED);
+		tcp_unset_retrans_timer(tsk);
 		tcp_unhash(tsk);
 		tcp_bind_unhash(tsk);
 		return ;
@@ -196,7 +222,8 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 				tcp_set_state(tsk, TCP_CLOSED);
 				tcp_send_reset(cb);
 				list_delete_entry(&tsk->list);
-				free_tcp_sock(tsk);
+				tcp_unset_retrans_timer(tsk);
+				tcp_unhash(tsk);
 			}else{
 				tcp_set_state(tsk, TCP_ESTABLISHED);
 				tcp_sock_accept_enqueue(tsk);
@@ -214,18 +241,8 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		}
 		if(cb->flags & TCP_ACK){
 			int rlen = tcp_sock_recv(tsk, cb);
-			if(rlen == -1){
-				tcp_update_window_safe(tsk, cb);
-				tcp_ack_send_buf(tsk, cb);
-				tcp_send_control_packet(tsk, TCP_ACK);
-				return ;
-			}
 			tcp_update_window_safe(tsk, cb);
 			tcp_ack_send_buf(tsk, cb);
-			if(cb->flags & TCP_FIN){
-				tcp_set_state(tsk, TCP_CLOSE_WAIT);
-				wake_up(tsk->wait_recv);
-			}
 		}
 		break;
 	case TCP_FIN_WAIT_1:
@@ -234,17 +251,9 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		}
 		if(cb->flags & TCP_ACK){
 			int rlen = tcp_sock_recv(tsk, cb);
-			if(rlen == -1){
-				tcp_send_control_packet(tsk, TCP_ACK);
-				return ;				
-			}
 			tcp_update_window_safe(tsk, cb);
 			tcp_ack_send_buf(tsk, cb);
 			tcp_set_state(tsk, TCP_FIN_WAIT_2);
-		}
-		if((cb->flags & TCP_FIN) && (cb->flags & TCP_ACK)){
-			tcp_set_state(tsk, TCP_TIME_WAIT);
-			tcp_set_timewait_timer(tsk);
 		}
 		break;
 	case TCP_FIN_WAIT_2:
@@ -253,16 +262,28 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		}
 		if(cb->flags & TCP_ACK){
 			int rlen = tcp_sock_recv(tsk, cb);
-			if(rlen==-1){
-				tcp_send_control_packet(tsk, TCP_ACK);
-				return ;
-			}
 			tcp_update_window_safe(tsk, cb);
 			tcp_ack_send_buf(tsk, cb);
 		}
-		if(cb->flags & TCP_FIN){
-			tcp_set_state(tsk, TCP_TIME_WAIT);
-			tcp_set_timewait_timer(tsk);	
+		break;
+	case TCP_TIME_WAIT:
+		if(!is_tcp_seq_valid(tsk, cb)){
+			return ;
+		}
+		if(cb->flags & TCP_ACK){
+			int rlen = tcp_sock_recv(tsk, cb);
+			tcp_update_window_safe(tsk, cb);
+			tcp_ack_send_buf(tsk, cb);
+		}
+		break;
+	case TCP_CLOSE_WAIT:
+		if(!is_tcp_seq_valid(tsk, cb)){
+			return ;
+		}
+		if(cb->flags & TCP_ACK){
+			int rlen = tcp_sock_recv(tsk, cb);
+			tcp_update_window_safe(tsk, cb);
+			tcp_ack_send_buf(tsk, cb);
 		}
 		break;
 	case TCP_LAST_ACK:
@@ -279,25 +300,6 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 			}
 		}
 		break;
-	case TCP_CLOSE_WAIT:
-		if(!is_tcp_seq_valid(tsk, cb)){
-			return ;
-		}
-		if(cb->flags & TCP_FIN){
-			tcp_send_control_packet(tsk, TCP_ACK);
-		}
-		if(cb->flags & TCP_ACK){
-			tcp_update_window_safe(tsk, cb);
-			tcp_ack_send_buf(tsk, cb);
-		}
-		break;
-	case TCP_TIME_WAIT:
-		if(!is_tcp_seq_valid(tsk, cb)){
-			return ;
-		}
-		if(cb->flags & TCP_FIN){
-			tcp_send_control_packet(tsk, TCP_ACK);
-		}
 	default:
 		break;
 	}

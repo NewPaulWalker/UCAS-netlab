@@ -100,6 +100,12 @@ void free_tcp_sock(struct tcp_sock *tsk)
 			list_delete_entry(&send_packet->list);
 			free(send_packet);
 		}
+		struct recv_packet *recv_packet, *recv_packet_q;
+		list_for_each_entry_safe(recv_packet, recv_packet_q, &tsk->rcv_ofo_buf, list){
+			free(recv_packet->packet);
+			list_delete_entry(&recv_packet->list);
+			free(recv_packet);
+		}
 		free(tsk);
 	}
 }
