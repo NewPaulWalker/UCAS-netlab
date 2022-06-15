@@ -73,13 +73,13 @@ int tcp_sock_recv(struct tcp_sock *tsk, struct tcp_cb *cb){
 	}else{
 		pend->packet = NULL;
 	}
-	peng->len = cb->pl_len;
+	pend->len = cb->pl_len;
 	pend->seq = cb->seq;
 	pend->seq_end = cb->seq_end;
 	struct recv_packet *entry, *q;
 	list_for_each_entry_safe(entry, q, &tsk->rcv_ofo_buf, list){
 		if(entry->seq > pend->seq){
-			list_insert(&pend->list, entry->list.prev, entry);
+			list_insert(&pend->list, entry->list.prev, &entry->list);
 			break;
 		}
 	}
@@ -215,6 +215,8 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		if(cb->flags & TCP_ACK){
 			int rlen = tcp_sock_recv(tsk, cb);
 			if(rlen == -1){
+				tcp_update_window_safe(tsk, cb);
+				tcp_ack_send_buf(tsk, cb);
 				tcp_send_control_packet(tsk, TCP_ACK);
 				return ;
 			}
@@ -270,9 +272,11 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		if(cb->flags & TCP_ACK){
 			tcp_update_window_safe(tsk, cb);
 			tcp_ack_send_buf(tsk, cb);
-			tcp_set_state(tsk, TCP_CLOSED);
-			tcp_unhash(tsk);
-			tcp_bind_unhash(tsk);
+			if(list_empty(&tsk->send_buf)){
+				tcp_set_state(tsk, TCP_CLOSED);
+				tcp_unhash(tsk);
+				tcp_bind_unhash(tsk);
+			}
 		}
 		break;
 	case TCP_CLOSE_WAIT:

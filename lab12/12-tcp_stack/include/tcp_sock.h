@@ -128,7 +128,7 @@ struct recv_packet{
 	int len;
 	u32 seq;
 	u32 seq_end;
-}
+};
 
 void tcp_set_state(struct tcp_sock *tsk, int state);
 

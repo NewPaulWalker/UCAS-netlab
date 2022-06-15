@@ -76,6 +76,7 @@ void tcp_set_retrans_timer(struct tcp_sock *tsk, int mode){
 		tsk->ref_cnt ++;
 		list_add_tail(&tsk->retrans_timer.list, &timer_list);
 	}else if(mode == 0){
+		tsk->retrans_timer.type = 1;
 		tsk->retrans_timer.timeout = TCP_RETRANS_INTERVAL_INITIAL;
 	}
 	pthread_mutex_unlock(&tcp_timer_lock);	
