@@ -55,6 +55,24 @@ void tcp_scan_timer_list()
 							//double time
 							entry->type ++;
 							entry->timeout = TCP_RETRANS_INTERVAL_INITIAL << (entry->type - 1);
+							//**Retransmission Timeout**
+							pthread_mutex_lock(&tsk->wnd_lock);
+							tsk->recovery_point = 0;
+							tsk->duseq = 0;
+							tsk->dupacks = 0;
+							tsk->ssthresh = tsk->cwnd / 2;
+							tsk->cwnd = 1;
+							tsk->temp_cwnd = 0;
+							tsk->ackpacks = -1;
+							tsk->frpacks = -1;
+							tsk->snd_wnd = min(tsk->adv_wnd/TCP_MSS, tsk->cwnd);
+
+							//log
+							struct timeval now;
+							gettimeofday(&now, NULL);
+							fprintf(tsk->fd, "%ld%06ld		%d\n",now.tv_sec, now.tv_usec, tsk->cwnd);
+
+							pthread_mutex_unlock(&tsk->wnd_lock);
 						}
 					}else{
 						//rst

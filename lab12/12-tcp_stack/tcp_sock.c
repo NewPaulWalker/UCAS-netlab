@@ -54,8 +54,19 @@ struct tcp_sock *alloc_tcp_sock()
 	memset(tsk, 0, sizeof(struct tcp_sock));
 
 	tsk->state = TCP_CLOSED;
+
+	tsk->fd = fopen("cwnd", "w");
+
+	pthread_mutex_init(&tsk->wnd_lock,NULL);
+	tsk->recovery_point = 0;
+	tsk->duseq = 0;
+	tsk->dupacks = 0;
 	tsk->rcv_wnd = TCP_DEFAULT_WINDOW;
-	pthread_mutex_init(&tsk->snd_wnd_lock,NULL);
+	tsk->cwnd = 1;
+	tsk->temp_cwnd = 0;
+	tsk->ackpacks = -1;
+	tsk->frpacks = -1;
+	tsk->ssthresh = UNSIGNED_MAX;
 
 	init_list_head(&tsk->list);
 	init_list_head(&tsk->listen_queue);
@@ -84,6 +95,7 @@ void free_tcp_sock(struct tcp_sock *tsk)
 	//fprintf(stdout, "TODO: implement %s please.\n", __FUNCTION__);
 	tsk->ref_cnt --;
 	if(tsk->ref_cnt<=0){
+		fclose(tsk->fd);
 		free_ring_buffer(tsk->rcv_buf);
 		//first exit and then free
 		wait_exit(tsk->wait_accept);
@@ -437,18 +449,17 @@ int tcp_sock_write(struct tcp_sock *tsk, char *buf, int len){
 	int rest = len;
 	char *read = buf;
 	while(rest){
-		int wlen = min(rest, ETH_FRAME_LEN - ETHER_HDR_SIZE - IP_BASE_HDR_SIZE - TCP_BASE_HDR_SIZE);
+		int wlen = min(rest, TCP_MSS);
 		char *packet = (char*)malloc(wlen + ETHER_HDR_SIZE+ IP_BASE_HDR_SIZE + TCP_BASE_HDR_SIZE);
 		memcpy(packet + ETHER_HDR_SIZE + IP_BASE_HDR_SIZE + TCP_BASE_HDR_SIZE, read, wlen);
-		pthread_mutex_lock(&tsk->snd_wnd_lock);
-		while(tsk->snd_wnd < wlen){
+		pthread_mutex_lock(&tsk->wnd_lock);
+		while(tsk->snd_wnd + tsk->temp_cwnd - (tsk->snd_nxt-tsk->snd_una)/TCP_MSS + tsk->dupacks <= 0){
 			tsk->snd_wnd = 0;
-			pthread_mutex_unlock(&tsk->snd_wnd_lock);
+			pthread_mutex_unlock(&tsk->wnd_lock);
 			sleep_on(tsk->wait_send);
-			pthread_mutex_lock(&tsk->snd_wnd_lock);
+			pthread_mutex_lock(&tsk->wnd_lock);
 		}
-		tsk->snd_wnd -= wlen;
-		pthread_mutex_unlock(&tsk->snd_wnd_lock);
+		pthread_mutex_unlock(&tsk->wnd_lock);
 		tcp_send_packet(tsk, packet, wlen + ETHER_HDR_SIZE + IP_BASE_HDR_SIZE + TCP_BASE_HDR_SIZE);
 		tcp_set_retrans_timer(tsk, 1);
 		rest -= wlen;
