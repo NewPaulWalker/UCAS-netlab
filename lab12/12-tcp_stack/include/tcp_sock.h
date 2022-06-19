@@ -10,6 +10,7 @@
 #include "synch_wait.h"
 
 #include <pthread.h>
+#include <stdio.h>
 
 #define PORT_MIN	12345
 #define PORT_MAX	23456
@@ -93,6 +94,9 @@ struct tcp_sock {
 
 	// the highest byte ACKed by itself (i.e. the byte expected to receive next)
 	u32 rcv_nxt;
+
+	// DEBUG file
+	FILE *debug;
 
 	// log file
 	FILE *fd;

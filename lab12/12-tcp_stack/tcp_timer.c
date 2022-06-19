@@ -63,9 +63,9 @@ void tcp_scan_timer_list()
 							tsk->ssthresh = tsk->cwnd / 2;
 							tsk->cwnd = 1;
 							tsk->temp_cwnd = 0;
-							tsk->ackpacks = -1;
+							tsk->capacks = -1;
 							tsk->frpacks = -1;
-							tsk->snd_wnd = min(tsk->adv_wnd/TCP_MSS, tsk->cwnd);
+							tsk->snd_wnd = min(tsk->adv_wnd/TCP_MSS, tsk->cwnd + tsk->temp_cwnd);
 
 							//log
 							struct timeval now;

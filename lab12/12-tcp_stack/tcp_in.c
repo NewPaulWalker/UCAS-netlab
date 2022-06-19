@@ -17,19 +17,17 @@ static inline void tcp_update_window(struct tcp_sock *tsk, struct tcp_cb *cb)
 		tsk->adv_wnd = cb->rwnd;
 		tsk->cwnd ++;
 		tsk->snd_wnd = min(tsk->adv_wnd/TCP_MSS, tsk->cwnd);
-		//log
-		struct timeval now;
-		gettimeofday(&now, NULL);
-		fprintf(tsk->fd, "%ld%06ld		%d\n",now.tv_sec, now.tv_usec, tsk->cwnd);
 		return ;
 	}
 	//normal state
 	pthread_mutex_lock(&tsk->wnd_lock);
 	u16 old_snd_wnd = tsk->snd_wnd;
-	tsk->snd_una = cb->ack;
-	tsk->adv_wnd += (cb->ack - tsk->snd_una) > 0 ? (cb->ack - tsk->snd_una) : 0;
+	if(cb->ack > tsk->snd_una){
+		tsk->adv_wnd = cb->rwnd;
+		tsk->snd_una = cb->ack;
+	}
 
-	if(tsk->recovery_point==0){
+	if(tsk->recovery_point==0 && tsk->frpacks==-1){
 		if(tsk->cwnd < tsk->ssthresh){
 			//**Slow Start**
 			tsk->cwnd ++;
@@ -52,27 +50,26 @@ static inline void tcp_update_window(struct tcp_sock *tsk, struct tcp_cb *cb)
 					ip_send_packet(packet, resend->len);
 				}
 				tsk->ssthresh = tsk->cwnd / 2;
-				tsk->recovery_point = tsk->snd_nxt;
 				tsk->duseq = 0;
 				tsk->dupacks = 0;
 				tsk->frpacks = tsk->cwnd;
 			}
 		}else{
 			tsk->duseq = cb->seq;
-			tsk->dupacks = 0;
+			tsk->dupacks = 1;
 		}
-		if(tsk->frpacks!=-1){
-			tsk->frpacks --;
-			if(tsk->frpacks % 2){
-				tsk->cwnd --;
-			}
+	}else if(tsk->recovery_point == 0){
+		tsk->frpacks --;
+		if(tsk->frpacks % 2){
+			tsk->cwnd --;
 		}
 		if(tsk->frpacks == 0){
 			tsk->frpacks = -1;
+			tsk->recovery_point = tsk->snd_nxt;
 		}
 	}
 
-	tsk->snd_wnd = min(tsk->adv_wnd/TCP_MSS, tsk->cwnd);
+	tsk->snd_wnd = min(tsk->adv_wnd/TCP_MSS, tsk->cwnd + tsk->temp_cwnd);
 
 	//log
 	struct timeval now;
@@ -80,9 +77,7 @@ static inline void tcp_update_window(struct tcp_sock *tsk, struct tcp_cb *cb)
 	fprintf(tsk->fd, "%ld%06ld		%d\n",now.tv_sec, now.tv_usec, tsk->cwnd);
 
 	pthread_mutex_unlock(&tsk->wnd_lock);
-	if (old_snd_wnd == 0){
-		wake_up(tsk->wait_send);
-	}
+	wake_up(tsk->wait_send);
 }
 
 // update the snd_wnd safely: cb->ack should be between snd_una and snd_nxt
@@ -217,6 +212,7 @@ void tcp_ack_send_buf(struct tcp_sock *tsk, struct tcp_cb *cb){
 		if(changed == 0){
 			//infligt--;
 			tsk->temp_cwnd ++;
+			tsk->snd_wnd = min(tsk->adv_wnd/TCP_MSS, tsk->cwnd + tsk->temp_cwnd);
 			wake_up(tsk->wait_send);
 		}else if(cb->ack < tsk->recovery_point){
 			//partail ack
@@ -230,9 +226,10 @@ void tcp_ack_send_buf(struct tcp_sock *tsk, struct tcp_cb *cb){
 			//full ack
 			tsk->recovery_point = 0;
 			tsk->temp_cwnd = 0;
+			tsk->snd_wnd = min(tsk->adv_wnd/TCP_MSS, tsk->cwnd + tsk->temp_cwnd);
 		}
 	}
-	pthread_mutex_lock(&tsk->wnd_lock);
+	pthread_mutex_unlock(&tsk->wnd_lock);
 	if(list_empty(&tsk->send_buf)){
 		tcp_unset_retrans_timer(tsk);
 	}else if(changed){
@@ -312,10 +309,6 @@ void tcp_process(struct tcp_sock *tsk, struct tcp_cb *cb, char *packet)
 		break;
 	case TCP_ESTABLISHED:
 		if(!is_tcp_seq_valid(tsk, cb)){
-			return ;
-		}
-		if(cb->flags == (TCP_SYN | TCP_ACK)){
-			tcp_send_control_packet(tsk, TCP_ACK);
 			return ;
 		}
 		if(cb->flags & TCP_ACK){
