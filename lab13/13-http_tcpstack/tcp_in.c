@@ -67,12 +67,7 @@ static inline void tcp_update_window(struct tcp_sock *tsk, struct tcp_cb *cb)
 	}
 
 	tsk->snd_wnd = min(tsk->adv_wnd/TCP_MSS, tsk->cwnd);
-
-	//log
-	struct timeval now;
-	gettimeofday(&now, NULL);
-	fprintf(tsk->fd, "%ld.%06ld		%d\n",now.tv_sec, now.tv_usec, tsk->cwnd);
-
+	
 	pthread_mutex_unlock(&tsk->wnd_lock);
 	wake_up(tsk->wait_send);
 }

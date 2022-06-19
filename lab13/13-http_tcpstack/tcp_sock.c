@@ -51,9 +51,6 @@ struct tcp_sock *alloc_tcp_sock()
 
 	tsk->state = TCP_CLOSED;
 
-	tsk->fd = fopen("cwnd", "w");
-	tsk->debug = fopen("debug", "w");
-
 	pthread_mutex_init(&tsk->wnd_lock,NULL);
 	tsk->recovery_point = 0;
 	tsk->duack = 0;
@@ -92,8 +89,6 @@ void free_tcp_sock(struct tcp_sock *tsk)
 	//fprintf(stdout, "TODO: implement %s please.\n", __FUNCTION__);
 	tsk->ref_cnt --;
 	if(tsk->ref_cnt<=0){
-		fclose(tsk->fd);
-		fclose(tsk->debug);
 		free_ring_buffer(tsk->rcv_buf);
 		//first exit and then free
 		wait_exit(tsk->wait_accept);
