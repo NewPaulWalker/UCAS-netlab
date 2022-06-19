@@ -58,19 +58,25 @@ static inline int is_tcp_seq_valid(struct tcp_sock *tsk, struct tcp_cb *cb)
 int tcp_sock_recv(struct tcp_sock *tsk, struct tcp_cb *cb){
 	//judge if have recvd
 	if(less_or_equal_32b(cb->seq_end, tsk->rcv_nxt)){
-		tcp_send_control_packet(tsk, TCP_ACK);
+		if(cb->pl_len == 0 && !(cb->flags & TCP_FIN)){
+			// donot ack ack
+		}else{
+			tcp_send_control_packet(tsk, TCP_ACK);
+		}
 		return -1;
 	}
 	struct recv_packet *recvd;
 	list_for_each_entry(recvd, &tsk->rcv_ofo_buf, list){
 		if(recvd->seq == cb->seq){
-			tcp_send_control_packet(tsk, TCP_ACK);
+			if(cb->pl_len == 0 && !(cb->flags & TCP_FIN)){
+
+			}else{
+				tcp_send_control_packet(tsk, TCP_ACK);
+			}
 			return -1;
 		}
 	}
-	if(cb->pl_len == 0 && !(cb->flags & TCP_FIN)){
-		return 0;
-	}
+
 	if(tsk->rcv_nxt == cb->seq){
 		if(cb->pl_len){
 			while(ring_buffer_free(tsk->rcv_buf) < cb->pl_len){
