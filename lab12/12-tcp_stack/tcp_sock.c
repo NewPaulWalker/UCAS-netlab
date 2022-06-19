@@ -50,8 +50,20 @@ struct tcp_sock *alloc_tcp_sock()
 	memset(tsk, 0, sizeof(struct tcp_sock));
 
 	tsk->state = TCP_CLOSED;
-	tsk->rcv_wnd = TCP_DEFAULT_WINDOW;
+
+	tsk->fd = fopen("cwnd", "w");
+	tsk->debug = fopen("debug", "w");
+
 	pthread_mutex_init(&tsk->wnd_lock,NULL);
+	tsk->recovery_point = 0;
+	tsk->duack = 0;
+	tsk->dupacks = 0;
+	tsk->rcv_wnd = TCP_DEFAULT_WINDOW;
+	tsk->cwnd = 1;
+	tsk->temp_cwnd = 0;
+	tsk->capacks = 0;
+	tsk->frpacks = -1;
+	tsk->ssthresh = UNSIGNED_MAX;
 
 	init_list_head(&tsk->list);
 	init_list_head(&tsk->listen_queue);
@@ -80,6 +92,8 @@ void free_tcp_sock(struct tcp_sock *tsk)
 	//fprintf(stdout, "TODO: implement %s please.\n", __FUNCTION__);
 	tsk->ref_cnt --;
 	if(tsk->ref_cnt<=0){
+		fclose(tsk->fd);
+		fclose(tsk->debug);
 		free_ring_buffer(tsk->rcv_buf);
 		//first exit and then free
 		wait_exit(tsk->wait_accept);
@@ -424,7 +438,7 @@ int tcp_sock_write(struct tcp_sock *tsk, char *buf, int len){
 			pthread_mutex_lock(&tsk->wnd_lock);
 		}
 		tsk->adv_wnd -= wlen;
-		tsk->snd_wnd = min(tsk->adv_wnd/TCP_MSS, 100);
+		tsk->snd_wnd = min(tsk->adv_wnd/TCP_MSS, tsk->cwnd);
 		pthread_mutex_unlock(&tsk->wnd_lock);
 		tcp_send_packet(tsk, packet, wlen + ETHER_HDR_SIZE + IP_BASE_HDR_SIZE + TCP_BASE_HDR_SIZE);
 		tcp_set_retrans_timer(tsk, 1);

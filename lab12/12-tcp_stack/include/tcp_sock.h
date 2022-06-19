@@ -10,7 +10,7 @@
 #include "synch_wait.h"
 
 #include <pthread.h>
-
+#include <stdio.h>
 #define PORT_MIN	12345
 #define PORT_MAX	23456
 
@@ -94,11 +94,21 @@ struct tcp_sock {
 	// the highest byte ACKed by itself (i.e. the byte expected to receive next)
 	u32 rcv_nxt;
 
+	// DEBUG file
+	FILE *debug;
+
+	// log file
+	FILE *fd;
+
+	// used to access wnd
+	pthread_mutex_t wnd_lock;
+
 	// used to indicate the end of fast recovery
 	u32 recovery_point;		
+	u32 duack;		//dupacks ack
+	int dupacks;	//dupacks num
 
 	// min(adv_wnd, cwnd)
-	pthread_mutex_t wnd_lock;
 	u32 snd_wnd;
 	// the receiving window advertised by peer
 	u16 adv_wnd;
@@ -108,6 +118,9 @@ struct tcp_sock {
 
 	// congestion window
 	u32 cwnd;
+	int temp_cwnd;	//inflight down
+	int capacks;	//used for congestion avoidance
+	int frpacks;	//used for fast retransmisssion
 
 	// slow start threshold
 	u32 ssthresh;

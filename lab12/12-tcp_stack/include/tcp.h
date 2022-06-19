@@ -43,6 +43,8 @@ struct tcphdr {
 
 #define TCP_MSS (ETH_FRAME_LEN - ETHER_HDR_SIZE - IP_BASE_HDR_SIZE - TCP_BASE_HDR_SIZE)
 
+#define UNSIGNED_MAX 4294967295
+
 #define TCP_DEFAULT_WINDOW 65535
 
 // control block, representing all the necesary information of a packet
