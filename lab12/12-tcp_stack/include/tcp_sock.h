@@ -98,7 +98,7 @@ struct tcp_sock {
 	u32 recovery_point;		
 
 	// min(adv_wnd, cwnd)
-	pthread_mutex_t snd_wnd_lock;
+	pthread_mutex_t wnd_lock;
 	u32 snd_wnd;
 	// the receiving window advertised by peer
 	u16 adv_wnd;

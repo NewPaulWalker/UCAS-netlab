@@ -41,6 +41,8 @@ struct tcphdr {
 #define TCP_BASE_HDR_SIZE 20
 #define TCP_HDR_SIZE(tcp) (tcp->off * 4)
 
+#define TCP_MSS (ETH_FRAME_LEN - ETHER_HDR_SIZE - IP_BASE_HDR_SIZE - TCP_BASE_HDR_SIZE)
+
 #define TCP_DEFAULT_WINDOW 65535
 
 // control block, representing all the necesary information of a packet

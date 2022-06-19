@@ -37,7 +37,8 @@ void tcp_scan_timer_list()
 					//type: retrans
 
 					struct tcp_sock *tsk = retranstimer_to_tcp_sock(entry);
-					if(entry->type < 4){
+					if(entry->type < 9){
+						//In accordance with BSD socket
 						if(list_empty(&tsk->send_buf)){
 							//rst
 							log(DEBUG, "nothing to retran");

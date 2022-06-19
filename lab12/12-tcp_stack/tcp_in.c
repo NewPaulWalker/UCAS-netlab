@@ -12,17 +12,17 @@
 static inline void tcp_update_window(struct tcp_sock *tsk, struct tcp_cb *cb)
 {
 	if(tsk->state == TCP_SYN_RECV || tsk->state == TCP_SYN_SENT){
-		tsk->snd_wnd = cb->rwnd;
 		tsk->snd_una = cb->ack;
 		tsk->adv_wnd = cb->rwnd;
+		tsk->snd_wnd = min(tsk->adv_wnd/TCP_MSS, 100);
 		return ;
 	}
 	u16 old_snd_wnd = tsk->snd_wnd;
-	pthread_mutex_lock(&tsk->snd_wnd_lock);
-	tsk->snd_wnd += (cb->ack - tsk->snd_una);
-	pthread_mutex_unlock(&tsk->snd_wnd_lock);
+	pthread_mutex_lock(&tsk->wnd_lock);
+	tsk->adv_wnd += (cb->ack - tsk->snd_una);
 	tsk->snd_una = cb->ack;
-	tsk->adv_wnd = cb->rwnd;
+	tsk->snd_wnd = min(tsk->adv_wnd/TCP_MSS, 100);
+	pthread_mutex_unlock(&tsk->wnd_lock);
 	if (old_snd_wnd == 0){
 		wake_up(tsk->wait_send);
 	}
