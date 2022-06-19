@@ -17,8 +17,6 @@ struct tcp_hash_table tcp_sock_table;
 #define tcp_listen_sock_table		tcp_sock_table.listen_table
 #define tcp_bind_sock_table			tcp_sock_table.bind_table
 
-pthread_mutex_t tcp_sock_table_lock;
-
 inline void tcp_set_state(struct tcp_sock *tsk, int state)
 {
 	log(DEBUG, IP_FMT":%hu switch state, from %s to %s.", \
@@ -38,8 +36,6 @@ void init_tcp_stack()
 
 	for (int i = 0; i < TCP_HASH_SIZE; i++)
 		init_list_head(&tcp_bind_sock_table[i]);
-
-	pthread_mutex_init(&tcp_sock_table_lock, NULL);
 
 	pthread_t timer;
 	pthread_create(&timer, NULL, tcp_timer_thread, NULL);
@@ -115,16 +111,13 @@ struct tcp_sock *tcp_sock_lookup_established(u32 saddr, u32 daddr, u16 sport, u1
 {
 	//fprintf(stdout, "TODO: implement %s please.\n", __FUNCTION__);
 	int key = tcp_hash_function(saddr, daddr, sport, dport);
-	pthread_mutex_lock(&tcp_sock_table_lock);
 	tcp_sock_t *entry;
 	list_for_each_entry(entry, &tcp_established_sock_table[key], hash_list){
 		if(entry->sk_sip == saddr && entry->sk_sport == sport && 
 			entry->sk_dip == daddr && entry->sk_dport == dport){
-				pthread_mutex_unlock(&tcp_sock_table_lock);
 				return entry;
 			}
 	}
-	pthread_mutex_unlock(&tcp_sock_table_lock);
 	return NULL;
 }
 
@@ -135,15 +128,12 @@ struct tcp_sock *tcp_sock_lookup_listen(u32 saddr, u16 sport)
 {
 	//fprintf(stdout, "TODO: implement %s please.\n", __FUNCTION__);
 	int key = tcp_hash_function(0, 0, sport, 0);
-	pthread_mutex_lock(&tcp_sock_table_lock);
 	tcp_sock_t *entry;
 	list_for_each_entry(entry, &tcp_listen_sock_table[key], hash_list){
 		if(entry->sk_sport == sport){
-			pthread_mutex_unlock(&tcp_sock_table_lock);
 			return entry;
 		}
 	}
-	pthread_mutex_unlock(&tcp_sock_table_lock);
 	return NULL;
 }
 
@@ -167,9 +157,7 @@ static int tcp_bind_hash(struct tcp_sock *tsk)
 {
 	int bind_hash_value = tcp_hash_function(0, 0, tsk->sk_sport, 0);
 	struct list_head *list = &tcp_bind_sock_table[bind_hash_value];
-	pthread_mutex_lock(&tcp_sock_table_lock);
 	list_add_head(&tsk->bind_hash_list, list);
-	pthread_mutex_unlock(&tcp_sock_table_lock);
 	tsk->ref_cnt += 1;
 
 	return 0;
@@ -179,9 +167,7 @@ static int tcp_bind_hash(struct tcp_sock *tsk)
 void tcp_bind_unhash(struct tcp_sock *tsk)
 {
 	if (!list_empty(&tsk->bind_hash_list)) {
-		pthread_mutex_lock(&tcp_sock_table_lock);
 		list_delete_entry(&tsk->bind_hash_list);
-		pthread_mutex_unlock(&tcp_sock_table_lock);
 		free_tcp_sock(tsk);
 	}
 }
@@ -192,14 +178,11 @@ static int tcp_port_in_use(u16 sport)
 	int value = tcp_hash_function(0, 0, sport, 0);
 	struct list_head *list = &tcp_bind_sock_table[value];
 	struct tcp_sock *tsk;
-	pthread_mutex_lock(&tcp_sock_table_lock);
 	list_for_each_entry(tsk, list, bind_hash_list) {
 		if (tsk->sk_sport == sport){
-			pthread_mutex_unlock(&tcp_sock_table_lock);
 			return 1;
 		}
 	}
-	pthread_mutex_unlock(&tcp_sock_table_lock);
 	return 0;
 }
 
@@ -248,21 +231,16 @@ int tcp_hash(struct tcp_sock *tsk)
 		list = &tcp_established_sock_table[hash];
 
 		struct tcp_sock *tmp;
-		pthread_mutex_lock(&tcp_sock_table_lock);
 		list_for_each_entry(tmp, list, hash_list) {
 			if (tsk->sk_sip == tmp->sk_sip &&
 					tsk->sk_dip == tmp->sk_dip &&
 					tsk->sk_sport == tmp->sk_sport &&
 					tsk->sk_dport == tmp->sk_dport){
-						pthread_mutex_unlock(&tcp_sock_table_lock);
 						return -1;
 					}
 		}
-		pthread_mutex_unlock(&tcp_sock_table_lock);
 	}
-	pthread_mutex_lock(&tcp_sock_table_lock);
 	list_add_head(&tsk->hash_list, list);
-	pthread_mutex_unlock(&tcp_sock_table_lock);
 	tsk->ref_cnt += 1;
 
 	return 0;
@@ -272,9 +250,7 @@ int tcp_hash(struct tcp_sock *tsk)
 void tcp_unhash(struct tcp_sock *tsk)
 {
 	if (!list_empty(&tsk->hash_list)) {
-		pthread_mutex_lock(&tcp_sock_table_lock);
 		list_delete_entry(&tsk->hash_list);
-		pthread_mutex_unlock(&tcp_sock_table_lock);
 		free_tcp_sock(tsk);
 	}
 }
