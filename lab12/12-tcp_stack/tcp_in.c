@@ -57,7 +57,7 @@ static inline int is_tcp_seq_valid(struct tcp_sock *tsk, struct tcp_cb *cb)
 // recv data
 int tcp_sock_recv(struct tcp_sock *tsk, struct tcp_cb *cb){
 	//judge if have recvd
-	if(cb->seq_end <= tsk->rcv_nxt){
+	if(less_or_equal_32b(cb->seq_end, tsk->rcv_nxt)){
 		tcp_send_control_packet(tsk, TCP_ACK);
 		return -1;
 	}
@@ -72,28 +72,54 @@ int tcp_sock_recv(struct tcp_sock *tsk, struct tcp_cb *cb){
 		return 0;
 	}
 
-	//add to ofo buffer
-	struct recv_packet *pend = (struct recv_packet*)malloc(sizeof(struct recv_packet));
-	if(cb->pl_len){
-		char *packet = (char *)malloc(cb->pl_len);
-		memcpy(packet, cb->payload, cb->pl_len);
-		pend->packet = packet;
-	}else{
-		pend->packet = NULL;
-	}
-	pend->len = cb->pl_len;
-	pend->seq = cb->seq;
-	pend->seq_end = cb->seq_end;
-	pend->flags = cb->flags;
-	struct recv_packet *entry, *q;
-	list_for_each_entry_safe(entry, q, &tsk->rcv_ofo_buf, list){
-		if(entry->seq > pend->seq){
-			list_insert(&pend->list, entry->list.prev, &entry->list);
-			break;
+	if(tsk->rcv_nxt == cb->seq){
+		if(cb->pl_len){
+			while(ring_buffer_free(tsk->rcv_buf) < cb->pl_len){
+				wake_up(tsk->wait_recv);
+				sleep_on(tsk->wait_recv);
+			}
+			write_ring_buffer(tsk->rcv_buf, cb->payload, cb->pl_len);
 		}
+		if(cb->flags & TCP_FIN){
+			switch (tsk->state)
+			{
+			case TCP_ESTABLISHED:
+				tcp_set_state(tsk, TCP_CLOSE_WAIT);
+				wake_up(tsk->wait_recv);
+				break;
+			case TCP_FIN_WAIT_1:
+			case TCP_FIN_WAIT_2:
+				tcp_set_state(tsk, TCP_TIME_WAIT);
+				tcp_set_timewait_timer(tsk);
+			default:
+				break;
+			}
+		}
+		tsk->rcv_nxt = cb->seq_end;
+	}else{
+		//add to ofo buffer
+		struct recv_packet *pend = (struct recv_packet*)malloc(sizeof(struct recv_packet));
+		if(cb->pl_len){
+			char *packet = (char *)malloc(cb->pl_len);
+			memcpy(packet, cb->payload, cb->pl_len);
+			pend->packet = packet;
+		}else{
+			pend->packet = NULL;
+		}
+		pend->len = cb->pl_len;
+		pend->seq = cb->seq;
+		pend->seq_end = cb->seq_end;
+		pend->flags = cb->flags;
+		struct recv_packet *entry, *q;
+		list_for_each_entry_safe(entry, q, &tsk->rcv_ofo_buf, list){
+			if(greater_than_32b(entry->seq, pend->seq)){
+				list_insert(&pend->list, entry->list.prev, &entry->list);
+				break;
+			}
+		}
+		if(&entry->list == &tsk->rcv_ofo_buf)
+			list_add_tail(&pend->list, &tsk->rcv_ofo_buf);
 	}
-	if(&entry->list == &tsk->rcv_ofo_buf)
-		list_add_tail(&pend->list, &tsk->rcv_ofo_buf);
 	//write to rcv buff
 	do{
 		if(list_empty(&tsk->rcv_ofo_buf)){
@@ -144,10 +170,13 @@ int tcp_sock_recv(struct tcp_sock *tsk, struct tcp_cb *cb){
 
 // ack send buf
 void tcp_ack_send_buf(struct tcp_sock *tsk, struct tcp_cb *cb){
+	if(less_or_equal_32b(cb->ack, tsk->snd_una)){
+		return ;
+	}
 	struct send_packet *send, *q;
 	int changed = 0;
 	list_for_each_entry_safe(send, q, &tsk->send_buf, list){
-		if(cb->ack >= send->seq_end){
+		if(greater_or_equal_32b(cb->ack, send->seq_end)){
 			free(send->packet);
 			list_delete_entry(&send->list);
 			free(send);
