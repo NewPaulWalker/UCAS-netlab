@@ -21,7 +21,7 @@ struct ether_arp {
 	u8	arp_tha[ETH_ALEN];	// target hardware address
 	u32	arp_tpa;		// target protocol address
 } __attribute__ ((packed));
-
+#define ETHER_ARP_SIZE sizeof(struct ether_arp)
 // get the arp header of the packet
 static inline struct ether_arp *packet_to_ether_arp(const char *packet)
 {

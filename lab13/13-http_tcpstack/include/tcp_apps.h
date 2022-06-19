@@ -4,5 +4,5 @@
 
 void *tcp_server(void *arg);
 void *tcp_client(void *arg);
-
+void *handle_http_request(void *arg);
 #endif

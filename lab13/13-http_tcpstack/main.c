@@ -88,42 +88,21 @@ static void usage_and_exit(const char *basename)
 	exit(1);
 }
 
-static void run_application(const char *basename, char **args, int n)
+static void run_application()
 {
 	pthread_t thread;
+	u16 port = htons(80);
+	pthread_create(&thread, NULL, tcp_server, &port);
 
-	if (strcmp(args[0], "server") == 0) {
-		if (n != 2)
-			usage_and_exit(basename);
-
-		u16 port = htons(atoi(args[1]));
-		pthread_create(&thread, NULL, tcp_server, &port);
-	}
-	else if (strcmp(args[0], "client") == 0) {
-		if (n != 3)
-			usage_and_exit(basename);
-
-		struct sock_addr skaddr;
-		skaddr.ip = inet_addr(args[1]);
-		skaddr.port = htons(atoi(args[2]));
-		pthread_create(&thread, NULL, tcp_client, &skaddr);
-	}
-	else {
-		usage_and_exit(basename);
-	}
 }
 
-int main(int argc, char **argv)
+int main()
 {
 	setbuf(stdout,NULL);
 
 	if (getuid() && geteuid()) {
 		fprintf(stderr, "Permission denied, should be superuser!\n");
 		exit(1);
-	}
-
-	if (argc < 2) {
-		usage_and_exit(argv[0]);
 	}
 
 	init_ustack();
@@ -135,7 +114,7 @@ int main(int argc, char **argv)
 
 	init_tcp_stack();
 
-	run_application((const char *)basename(argv[0]), argv+1, argc-1);
+	run_application();
 
 	ustack_run();
 
