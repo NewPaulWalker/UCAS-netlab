@@ -138,7 +138,8 @@ void *handle_http_request(void *arg){
 			i--;
 			strcat(file_path, &temp_url[i]);
 		}
-		FILE *fp = fopen(file_path,"r");
+		//to read binary file
+		FILE *fp = fopen(file_path,"rb");
 		if(fp==NULL){
 			memset(buf,0,2000);
 			strcat(buf,http_version);
@@ -194,8 +195,12 @@ void *handle_http_request(void *arg){
 			else
 				strcat(response, "close");
 			strcat(response,"\r\n\r\n");
+			int len1 = strlen(response);
 			fread(&(response[strlen(response)]),1,size,fp);
-			tcp_sock_write(tsk, response, strlen(response));
+			//because mp4 is a binary file, it may has zero, which be seen as '\0'
+			//so can not use strlen()
+			int len2 = len1 + size;
+			tcp_sock_write(tsk, response, len2);
 			free(response);
 			fclose(fp);
 			if(range==1 && range_end==-1)
