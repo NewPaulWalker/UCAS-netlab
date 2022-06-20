@@ -184,7 +184,7 @@ void *handle_http_request(void *arg){
 				size_s[j] = size_s[i-j];
 				size_s[i-j] = temp;
 			}
-			char response[size + 200];
+			char *response = (char*)malloc(size+200);
 			memset(response,0,size+200);
 			strcat(response,header);
 			strcat(response,size_s);
@@ -196,6 +196,7 @@ void *handle_http_request(void *arg){
 			strcat(response,"\r\n\r\n");
 			fread(&(response[strlen(response)]),1,size,fp);
 			tcp_sock_write(tsk, response, strlen(response));
+			free(response);
 			fclose(fp);
 			if(range==1 && range_end==-1)
 				break;
